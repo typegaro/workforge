@@ -25,10 +25,16 @@ func LoadProject(path *string,profile *string) error {
 		        return fmt.Errorf("hook %d failed: %w", i+1, err)
 		    }
 		}
-		foreground := cfg[currentProfile].Foreground
-		terminal.RunSyncUserShell(foreground)
-		
-	
+		if cfg[currentProfile].Tmux == nil {
+			foreground := cfg[currentProfile].Foreground
+			terminal.RunSyncUserShell(foreground)
+		}else{
+			tmux := cfg[currentProfile].Tmux
+			err := terminal.TmuxNewSession(tmux.SessionName, tmux.Attach, tmux.Windows)
+			if err != nil {
+				return fmt.Errorf("failed to start tmux session: %w", err)
+			}
+		}
 	}
 	return nil
 }

@@ -25,6 +25,7 @@ type Hooks struct {
 
 type Tmux struct {
 	Attach  bool     `yaml:"attach"`
+	SessionName string   `yaml:"session_name,omitempty"`
 	Windows []string `yaml:"windows,omitempty"`
 }
 
