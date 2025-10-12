@@ -2,7 +2,7 @@ package terminal
 
 import "fmt"
 
-func TmuxNewSession(sessionName string, attach bool, windows []string) error {
+func TmuxNewSession(path string,sessionName string, attach bool, windows []string) error {
 	if err := RunSyncCommand("tmux","new-session", "-s", sessionName, "-d"); err != nil {
 		return err
 	}

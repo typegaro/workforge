@@ -2,11 +2,21 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"workforge/terminal"
 )
 
-func LoadProject(path string,profile *string) error {
-	cfg , err := LoadFile(path + ".wfconfig.yml")
+func LoadProject(path string,gwt bool,profile *string) error {
+	var cfg Config
+	var err error
+	if err := os.Chdir(path); err != nil {
+		return fmt.Errorf("chdir to %q failed: %w", path, err)
+	}
+	if gwt {
+		cfg , err = LoadFile("../.wfconfig.yml")
+	}else{
+		cfg , err = LoadFile(".wfconfig.yml")
+	}
 	if err != nil {
 		fmt.Println("error loading config:", err)
 		return nil
@@ -30,7 +40,7 @@ func LoadProject(path string,profile *string) error {
 			terminal.RunSyncUserShell(foreground)
 		}else{
 			tmux := cfg[currentProfile].Tmux
-			err := terminal.TmuxNewSession(tmux.SessionName, tmux.Attach, tmux.Windows)
+			err := terminal.TmuxNewSession(path,tmux.SessionName, tmux.Attach, tmux.Windows)
 			if err != nil {
 				return fmt.Errorf("failed to start tmux session: %w", err)
 			}
