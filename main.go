@@ -26,7 +26,7 @@ func main() {
 			if len(args)>0 {
 				url := args[0]
 				if len(args) > 1 {
-					*path = args[1]
+					path = &args[1]
 					entries, err = os.ReadDir(*path)
 				}else{
 					entries, err = os.ReadDir("./")
@@ -45,25 +45,23 @@ func main() {
 			config.WriteExampleConfig(path)
 		},
 	}
-
-	var addCmd = &cobra.Command{
-		Use:   "add <valore1> [valore2]",
-		Short: "add a new branch to the worktree",
-		Args:  cobra.RangeArgs(1, 2), 
+	var loadCmd= &cobra.Command{
+		Use:   "load [dir]",
+		Short: "load  a workforge project",
+		Args:  cobra.RangeArgs(0, 1), 
 		Run: func(cmd *cobra.Command, args []string) {
-			val1 := args[0]
-			var val2 string
-			if len(args) > 1 {
-				val2 = args[1]
+			var path *string
+			var profile *string
+			if len(args)>0 {
+				path = &args[0]
+			}else{
+				path = new(string)
+				*path = "./"
 			}
-			fmt.Printf("Aggiungo: %s", val1)
-			if val2 != "" {
-				fmt.Printf(" con extra: %s", val2)
-			}
-			fmt.Println()
+			config.LoadProject(path,profile)
 		},
 	}
-	rootCmd.AddCommand(initCmd, addCmd)
+	rootCmd.AddCommand(initCmd,loadCmd)
 
 	rootCmd.Execute()
 }
