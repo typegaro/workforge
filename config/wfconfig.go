@@ -5,8 +5,8 @@ import (
 	"workforge/terminal"
 )
 
-func LoadProject(path *string,profile *string) error {
-	cfg , err := LoadFile(*path + ".wfconfig.yml")
+func LoadProject(path string,profile *string) error {
+	cfg , err := LoadFile(path + ".wfconfig.yml")
 	if err != nil {
 		fmt.Println("error loading config:", err)
 		return nil
