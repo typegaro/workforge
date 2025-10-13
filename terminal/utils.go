@@ -1,4 +1,5 @@
 package terminal
+
 import (
 	"os"
 	"os/exec"
@@ -9,12 +10,7 @@ func RunSyncCommand(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return err
-	}else{
-		return nil
-	}
+	return cmd.Run()
 }
 
 func RunAsyncCommand(name string, args ...string) (*exec.Cmd, error) {
@@ -70,4 +66,3 @@ func userShellCommandLinux(cmdline string) *exec.Cmd {
 		return exec.Command(shell, "-c", cmdline)
 	}
 }
-

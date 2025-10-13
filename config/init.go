@@ -1,15 +1,14 @@
 package config
 
 import (
-    "fmt"
-    "os"
-    "path/filepath"
+	"fmt"
+	"os"
+	"path/filepath"
 )
 
 const ConfigFileName = ".wfconfig.yml"
 const ExampleConfigYAML = `# Workforge configuration file (YAML)
-# Add younoder own templates below, e.g. Node:
-# Profile names 
+# Add your own templates below, e.g. Node:
 defoult:
   log_level: "DEBUG"
   foreground: "nvim ."
@@ -17,7 +16,7 @@ defoult:
     on_load:
       - "echo \"Welcome in your project!\""
   tmux:
-    attach: true 
+    attach: true
     session_name: "test_prj"
     windows:
       - "nvim ."
@@ -25,44 +24,40 @@ defoult:
 `
 
 func WriteExampleConfig(path *string) error {
-	if path == nil  {
-		return os.WriteFile("./"+ConfigFileName, []byte(ExampleConfigYAML), 0o644)
-	}else{
-		return os.WriteFile(*path+"/"+ConfigFileName, []byte(ExampleConfigYAML), 0o644)
+	targetDir := "."
+	if path != nil && *path != "" {
+		targetDir = *path
 	}
+	if !filepath.IsAbs(targetDir) {
+		abs, err := filepath.Abs(targetDir)
+		if err == nil {
+			targetDir = abs
+		}
+	}
+	return os.WriteFile(filepath.Join(targetDir, ConfigFileName), []byte(ExampleConfigYAML), 0o644)
 }
 
-
-const WORK_FORGE_PRJ_CONFIG_DIR= ".config/workforge"
-const WORK_FORGE_PRJ_CONFIG_FILE = "workforge.json" 
-
-//gwt: git work tree
-func AddWorkforgePrj(name string ,path *string, gwt bool) error {
-	workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR 
-	absPath, err := os.Getwd()
+// gwt: git work tree
+func AddWorkforgePrj(name string, path *string, gwt bool) error {
+	projects, err := LoadProjects()
+	if err != nil {
+		return fmt.Errorf("failed to load existing projects: %w", err)
+	}
+	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	if path != nil {
-		absPath = absPath + "/" + *path
+	projectPath := cwd
+	if path != nil && *path != "" {
+		if filepath.IsAbs(*path) {
+			projectPath = filepath.Clean(*path)
+		} else {
+			projectPath = filepath.Join(cwd, *path)
+		}
 	}
-	if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
-		if err := os.MkdirAll(workforgePath, 0o755); err != nil {
-			return fmt.Errorf("failed to create workforge config directory: %w", err)
-		}
-		if err := os.WriteFile(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, []byte(""), 0o644); err != nil {
-			return fmt.Errorf("failed to create workforge config file: %w", err)
-		}
-		projects := Projects{name: {Name: name, Path: absPath, GitWorkTree: gwt}}
-		SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects)
-	} else {
-		projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
-		if err != nil {
-			return fmt.Errorf("failed to load existing projects: %w", err)
-		}else{
-			projects[name] = Project{Name: name, Path: absPath, GitWorkTree: gwt}
-			SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects)
-		}
+	projects[name] = Project{Name: name, Path: projectPath, GitWorkTree: gwt}
+	if err := SaveProjects(projects); err != nil {
+		return err
 	}
 	return nil
 }
@@ -73,46 +68,33 @@ func AddWorkforgePrj(name string ,path *string, gwt bool) error {
 // a registered GitWorkTree root, the leaf will be keyed as "<baseName>/<leafName>"; otherwise
 // it will use just "<leafName>" as the key.
 func AddWorkforgeLeaf(absLeafPath string) error {
-    workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR
+	projects, err := LoadProjects()
+	if err != nil {
+		return fmt.Errorf("failed to load existing projects: %w", err)
+	}
 
-    // Ensure registry exists
-    if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
-        if err := os.MkdirAll(workforgePath, 0o755); err != nil {
-            return fmt.Errorf("failed to create workforge config directory: %w", err)
-        }
-        if err := os.WriteFile(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, []byte(""), 0o644); err != nil {
-            return fmt.Errorf("failed to create workforge config file: %w", err)
-        }
-    }
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
 
-    projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
-    if err != nil {
-        return fmt.Errorf("failed to load existing projects: %w", err)
-    }
+	var baseName string
+	for name, p := range projects {
+		if p.GitWorkTree && filepath.Clean(p.Path) == filepath.Clean(cwd) {
+			baseName = name
+			break
+		}
+	}
 
-    // Try to find the base GWT project based on current working directory
-    cwd, err := os.Getwd()
-    if err != nil {
-        return fmt.Errorf("failed to get current directory: %w", err)
-    }
+	leafName := filepath.Base(absLeafPath)
+	key := leafName
+	if baseName != "" {
+		key = baseName + "/" + leafName
+	}
 
-    var baseName string
-    for name, p := range projects {
-        if p.GitWorkTree && p.Path == cwd {
-            baseName = name
-            break
-        }
-    }
-
-    leafName := filepath.Base(absLeafPath)
-    key := leafName
-    if baseName != "" {
-        key = baseName + "/" + leafName
-    }
-
-    projects[key] = Project{Name: key, Path: absLeafPath, GitWorkTree: false}
-    if err := SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects); err != nil {
-        return err
-    }
-    return nil
+	projects[key] = Project{Name: key, Path: filepath.Clean(absLeafPath), GitWorkTree: false}
+	if err := SaveProjects(projects); err != nil {
+		return err
+	}
+	return nil
 }

@@ -1,46 +1,104 @@
 package config
 
 import (
-    "encoding/json"
-    "fmt"
-    "os"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 )
 
 type Projects map[string]Project
+
 type Project struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
-	GitWorkTree bool `json:"git_work_tree"`
-}
-func SaveProjects(filename string, projects Projects) error {
-    data, err := json.MarshalIndent(projects, "", "  ")
-    if err != nil {
-        return fmt.Errorf("error marshalling JSON: %w", err)
-    }
-
-    return os.WriteFile(filename, data, 0644)
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	GitWorkTree bool   `json:"git_work_tree"`
 }
 
-func LoadProjects(filename string) (Projects, error) {
-    data, err := os.ReadFile(filename)
-    if err != nil {
-        return nil, fmt.Errorf("error reading file: %w", err)
-    }
+const (
+	configDirName  = "workforge"
+	configFileName = "workforge.json"
+)
 
-    var projects Projects
-    if err := json.Unmarshal(data, &projects); err != nil {
-        return nil, fmt.Errorf("error parsing JSON: %w", err)
-    }
-
-    return projects, nil
-}
-func ListProjects() (Projects, error) {
-	workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR
-	if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("workforge config directory does not exist")
+func registryDir() (string, error) {
+	if dir, ok := os.LookupEnv("XDG_CONFIG_HOME"); ok && dir != "" {
+		return filepath.Join(dir, configDirName), nil
 	}
-	projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
+	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
+		return filepath.Join(dir, configDirName), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve home directory: %w", err)
+	}
+	return filepath.Join(home, ".config", configDirName), nil
+}
+
+func registryFile() (string, error) {
+	dir, err := registryDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, configFileName), nil
+}
+
+func ensureRegistryFile() (string, error) {
+	filePath, err := registryFile()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		return "", fmt.Errorf("failed to create workforge config directory: %w", err)
+	}
+	if _, err := os.Stat(filePath); errors.Is(err, fs.ErrNotExist) {
+		if err := os.WriteFile(filePath, []byte("{}"), 0o644); err != nil {
+			return "", fmt.Errorf("failed to create workforge config file: %w", err)
+		}
+	}
+	return filePath, nil
+}
+
+func SaveProjects(projects Projects) error {
+	path, err := ensureRegistryFile()
+	if err != nil {
+		return err
+	}
+	if projects == nil {
+		projects = make(Projects)
+	}
+	data, err := json.MarshalIndent(projects, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshalling JSON: %w", err)
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func LoadProjects() (Projects, error) {
+	path, err := ensureRegistryFile()
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+	if len(data) == 0 {
+		return make(Projects), nil
+	}
+	var projects Projects
+	if err := json.Unmarshal(data, &projects); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
+	}
+	if projects == nil {
+		projects = make(Projects)
+	}
+	return projects, nil
+}
+
+func ListProjects() (Projects, error) {
+	projects, err := LoadProjects()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load existing projects: %w", err)
 	}
@@ -56,46 +114,31 @@ func ListProjectsExpanded() (Projects, map[string]bool, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
 	out := make(Projects)
 	hitmap := make(map[string]bool)
-
 	for _, p := range base {
 		if !p.GitWorkTree {
-			// Progetto normale: includilo così com'è
 			out[p.Name] = p
 			hitmap[p.Name] = false
 			continue
 		}
-
-		// Progetto GWT: elenca solo le subdir (niente base)
-        entries, err := os.ReadDir(p.Path)
-        if err != nil {
-            return nil, nil, fmt.Errorf("error reading GWT path %q: %w", p.Path, err)
-        }
-
-		found := false
+		entries, err := os.ReadDir(p.Path)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error reading GWT path %q: %w", p.Path, err)
+		}
 		for _, e := range entries {
 			if !e.IsDir() {
 				continue
 			}
-			found = true
 			subName := p.Name + "/" + e.Name()
 			subPath := filepath.Join(p.Path, e.Name())
 			out[subName] = Project{
 				Name:        subName,
 				Path:        subPath,
-				GitWorkTree: false, // il leaf non è a sua volta GWT
+				GitWorkTree: false,
 			}
-			hitmap[subName] = true // <- è una subdir proveniente da GWT
-		}
-
-		// Se non ci sono subdir, non aggiungiamo la base (come richiesto)
-		if !found {
-			// opzionale: potresti voler segnalare/avvisare
-			// fmt.Fprintf(os.Stderr, "attenzione: nessuna subdir in %s\n", p.Path)
+			hitmap[subName] = true
 		}
 	}
-
 	return out, hitmap, nil
 }
