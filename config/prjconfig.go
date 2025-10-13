@@ -16,7 +16,7 @@ type Project struct {
 func SaveProjects(filename string, projects Projects) error {
     data, err := json.MarshalIndent(projects, "", "  ")
     if err != nil {
-        return fmt.Errorf("errore nel marshal JSON: %w", err)
+        return fmt.Errorf("error marshalling JSON: %w", err)
     }
 
     return os.WriteFile(filename, data, 0644)
@@ -25,12 +25,12 @@ func SaveProjects(filename string, projects Projects) error {
 func LoadProjects(filename string) (Projects, error) {
     data, err := os.ReadFile(filename)
     if err != nil {
-        return nil, fmt.Errorf("errore nella lettura file: %w", err)
+        return nil, fmt.Errorf("error reading file: %w", err)
     }
 
     var projects Projects
     if err := json.Unmarshal(data, &projects); err != nil {
-        return nil, fmt.Errorf("errore nel parse JSON: %w", err)
+        return nil, fmt.Errorf("error parsing JSON: %w", err)
     }
 
     return projects, nil
@@ -69,10 +69,10 @@ func ListProjectsExpanded() (Projects, map[string]bool, error) {
 		}
 
 		// Progetto GWT: elenca solo le subdir (niente base)
-		entries, err := os.ReadDir(p.Path)
-		if err != nil {
-			return nil, nil, fmt.Errorf("errore lettura GWT path %q: %w", p.Path, err)
-		}
+        entries, err := os.ReadDir(p.Path)
+        if err != nil {
+            return nil, nil, fmt.Errorf("error reading GWT path %q: %w", p.Path, err)
+        }
 
 		found := false
 		for _, e := range entries {
