@@ -17,7 +17,7 @@ defoult:
     on_load:
       - "echo \"Welcome in your project!\""
   tmux:
-    attach: true 
+    attach: false 
     session_name: "test_prj"
     windows:
       - "nvim ."
@@ -69,7 +69,8 @@ func AddWorkforgePrj(name string ,path *string, gwt bool) error {
 
 // AddWorkforgeLeaf adds a newly created Git worktree leaf into the Workforge registry.
 // The provided path should be the absolute filesystem path of the worktree directory.
-// The entry is stored with GitWorkTree=false. If the current working directory matches
+// The entry is stored with GitWorkTree=true so tooling can detect it needs to read
+// config from the parent directory. If the current working directory matches
 // a registered GitWorkTree root, the leaf will be keyed as "<baseName>/<leafName>"; otherwise
 // it will use just "<leafName>" as the key.
 func AddWorkforgeLeaf(absLeafPath string) error {
@@ -87,7 +88,8 @@ func AddWorkforgeLeaf(absLeafPath string) error {
 
     projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
     if err != nil {
-        return fmt.Errorf("failed to load existing projects: %w", err)
+        // If the file is empty or invalid, start a new registry instead of failing
+        projects = make(Projects)
     }
 
     // Try to find the base GWT project based on current working directory
@@ -110,7 +112,7 @@ func AddWorkforgeLeaf(absLeafPath string) error {
         key = baseName + "/" + leafName
     }
 
-    projects[key] = Project{Name: key, Path: absLeafPath, GitWorkTree: false}
+    projects[key] = Project{Name: key, Path: absLeafPath, GitWorkTree: true}
     if err := SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects); err != nil {
         return err
     }

@@ -1,8 +1,8 @@
 package terminal
 
 import (
-	"fmt"
-	"strings"
+    "fmt"
+    "strings"
 )
 
 func GitClone(repoURL string, destination *string) error {
@@ -38,4 +38,13 @@ func AddWorkTree(name string) error {
 	}
 	fmt.Println("New worktree added successfully")
 	return nil
+}
+
+// GitCurrentBranch returns the current git branch name for the working directory.
+func GitCurrentBranch() (string, error) {
+    out, err := RunOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
+    if err != nil {
+        return "", fmt.Errorf("failed to get current branch: %w", err)
+    }
+    return out, nil
 }

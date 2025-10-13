@@ -1,8 +1,9 @@
 package terminal
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
+    "bytes"
+    "os"
+    "os/exec"
+    "path/filepath"
 )
 
 func RunSyncCommand(name string, args ...string) error {
@@ -27,6 +28,18 @@ func RunAsyncCommand(name string, args ...string) (*exec.Cmd, error) {
 	}
 
 	return cmd, nil
+}
+
+// RunOutput runs a command and returns its stdout as a trimmed string.
+func RunOutput(name string, args ...string) (string, error) {
+    cmd := exec.Command(name, args...)
+    var out bytes.Buffer
+    cmd.Stdout = &out
+    cmd.Stderr = &out
+    if err := cmd.Run(); err != nil {
+        return "", err
+    }
+    return string(bytes.TrimSpace(out.Bytes())), nil
 }
 
 func RunSyncUserShell(cmdline string) error {
@@ -70,4 +83,3 @@ func userShellCommandLinux(cmdline string) *exec.Cmd {
 		return exec.Command(shell, "-c", cmdline)
 	}
 }
-

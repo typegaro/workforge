@@ -4,7 +4,7 @@ import (
     "encoding/json"
     "fmt"
     "os"
-	"path/filepath"
+    "path/filepath"
 )
 
 type Projects map[string]Project
@@ -47,55 +47,58 @@ func ListProjects() (Projects, error) {
 	return projects, nil
 }
 
-// ListProjectsExpanded espande i progetti con GitWorkTree=true in tutte le subdir (solo directory, depth 1).
-// Restituisce:
-// - Projects "flattened": progetti normali + subdir dei GWT (senza la base GWT).
-// - hitmap: true per gli elementi che sono subdir GWT.
 func ListProjectsExpanded() (Projects, map[string]bool, error) {
-	base, err := ListProjects()
-	if err != nil {
-		return nil, nil, err
-	}
+    base, err := ListProjects()
+    if err != nil {
+        return nil, nil, err
+    }
 
 	out := make(Projects)
 	hitmap := make(map[string]bool)
 
-	for _, p := range base {
-		if !p.GitWorkTree {
-			// Progetto normale: includilo così com'è
-			out[p.Name] = p
-			hitmap[p.Name] = false
-			continue
-		}
+    for _, p := range base {
+        if !p.GitWorkTree {
+            // Normal project: include as-is
+            out[p.Name] = p
+            hitmap[p.Name] = false
+            continue
+        }
 
-		// Progetto GWT: elenca solo le subdir (niente base)
+        // If this is a Git worktree leaf (i.e., .git is a file), include it directly and mark as GWT leaf
+        if isGWTLeaf(p.Path) {
+            out[p.Name] = p
+            hitmap[p.Name] = true
+            continue
+        }
+
+        // Git Worktree base: list only subdirectories (exclude base)
         entries, err := os.ReadDir(p.Path)
         if err != nil {
             return nil, nil, fmt.Errorf("error reading GWT path %q: %w", p.Path, err)
         }
 
-		found := false
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			found = true
-			subName := p.Name + "/" + e.Name()
-			subPath := filepath.Join(p.Path, e.Name())
-			out[subName] = Project{
-				Name:        subName,
-				Path:        subPath,
-				GitWorkTree: false, // il leaf non è a sua volta GWT
-			}
-			hitmap[subName] = true // <- è una subdir proveniente da GWT
-		}
+        for _, e := range entries {
+            if !e.IsDir() {
+                continue
+            }
+            subName := p.Name + "/" + e.Name()
+            subPath := filepath.Join(p.Path, e.Name())
+            out[subName] = Project{
+                Name:        subName,
+                Path:        subPath,
+                GitWorkTree: false,
+            }
+            hitmap[subName] = true
+        }
+    }
 
-		// Se non ci sono subdir, non aggiungiamo la base (come richiesto)
-		if !found {
-			// opzionale: potresti voler segnalare/avvisare
-			// fmt.Fprintf(os.Stderr, "attenzione: nessuna subdir in %s\n", p.Path)
-		}
-	}
+    return out, hitmap, nil
+}
 
-	return out, hitmap, nil
+func isGWTLeaf(path string) bool {
+    st, err := os.Stat(filepath.Join(path, ".git"))
+    if err != nil {
+        return false
+    }
+    return !st.IsDir()
 }
