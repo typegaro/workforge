@@ -1,0 +1,13 @@
+# Workforge configuration file (YAML)
+# Add younoder own templates below, e.g. Node:
+# Profile names 
+defoult:
+  log_level: "DEBUG"
+  hooks:
+    on_load:
+      - "echo \"Welcome to workforge!\""
+  tmux:
+    attach: false
+    session_name: "workforge"
+    windows:
+      - "nvim ."

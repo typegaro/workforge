@@ -1,7 +1,8 @@
-package terminal 
+package terminal
 
 import (
 	"fmt"
+	"strings"
 )
 
 func GitClone(repoURL string, destination *string) error {
@@ -17,5 +18,24 @@ func GitClone(repoURL string, destination *string) error {
 		return fmt.Errorf("failed to clone repository: %s", err)
 	}
 	fmt.Printf("Repository cloned successfully\n")
+	return nil
+}
+func AddNewWorkTree(name string,prefix string, branch string, newb bool) error {
+	if newb {
+		err := RunSyncCommand("git", "worktree", "add", "../"+name, "-b", prefix+"/"+name, branch)
+		if err != nil {
+			return fmt.Errorf("failed to add the new worktree: %s", err)
+		}
+	}
+	fmt.Println("New worktree added successfully")
+	return nil
+}
+func AddWorkTree(name string) error {
+	folder_name := "../" + strings.ReplaceAll(name, "/", "-")
+	err := RunSyncCommand("git", "worktree", "add", folder_name, name)
+	if err != nil {
+		return fmt.Errorf("failed to add the new worktree: %s", err)
+	}
+	fmt.Println("New worktree added successfully")
 	return nil
 }

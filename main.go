@@ -16,8 +16,8 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{
-		Use:   "mio-cli",
-		Short: "CLI di esempio con comandi ordinati",
+		Use:   "wf",
+		Short: "Workforge - Forge your work",
 	}
 	var gwtFlag bool
 	var initCmd = &cobra.Command{
@@ -96,7 +96,7 @@ func main() {
 	}
 	type projItem struct {
 		config.Project
-		IsGWT bool // true se è una subdir derivata da GitWorkTree
+		IsGWT bool
 	}
 
 	var openCmd = &cobra.Command{
@@ -126,9 +126,9 @@ func main() {
 				items,
 				func(i int) string {
 					if items[i].IsGWT {
-						return "[GWT] " + items[i].Name
+						return "  " + items[i].Name
 					}
-					return "[Repo] " + items[i].Name
+					return "  " + items[i].Name
 				},
 				fuzzyfinder.WithPromptString(" Scegli progetto > "),
 			)
