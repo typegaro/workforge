@@ -98,12 +98,28 @@ func AddWorkforgeLeaf(absLeafPath string) error {
         return fmt.Errorf("failed to get current directory: %w", err)
     }
 
+    // Prefer matching the current working directory (when invoked from the base)
     var baseName string
+    var basePath string
     for name, p := range projects {
-        if p.GitWorkTree && p.Path == cwd {
+        if p.GitWorkTree && !isGWTLeaf(p.Path) && p.Path == cwd {
             baseName = name
+            basePath = p.Path
             break
         }
+    }
+
+    // If not found, try to match the parent directory of the leaf path to a known base
+    if baseName == "" {
+        parent := filepath.Dir(absLeafPath)
+        for name, p := range projects {
+            if p.GitWorkTree && !isGWTLeaf(p.Path) && p.Path == parent {
+                baseName = name
+                basePath = p.Path
+                break
+            }
+        }
+        _ = basePath // not used further, kept for clarity/consistency
     }
 
     leafName := filepath.Base(absLeafPath)

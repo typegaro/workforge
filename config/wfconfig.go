@@ -82,3 +82,29 @@ func LoadProject(path string, gwt bool, profile *string) error {
     }
     return nil
 }
+
+// RunOnDelete loads config (considering GWT) and runs hooks.on_delete in the project directory.
+func RunOnDelete(projectPath string, isGWT bool, profile *string) error {
+    // Ensure we are in the project directory so hooks run in the right cwd.
+    if err := EnterProjectDir(projectPath); err != nil {
+        return err
+    }
+    cfg, err := LoadConfig(projectPath, isGWT)
+    if err != nil {
+        // Non-fatal: if config missing, nothing to run.
+        fmt.Println("error loading config:", err)
+        return nil
+    }
+    currentProfile := DefaultProfile
+    if profile != nil && *profile != "" {
+        currentProfile = *profile
+    }
+    onDelete := cfg[currentProfile].Hooks.OnDelete
+    for i, cmd := range onDelete {
+        fmt.Println("running on_delete hook #", i+1, ":", cmd)
+        if err := terminal.RunSyncUserShell(cmd); err != nil {
+            return fmt.Errorf("on_delete hook %d failed: %w", i+1, err)
+        }
+    }
+    return nil
+}
