@@ -192,14 +192,12 @@ func main() {
     addCmd.Flags().StringVar(&addPrefix, "prefix", "feature", "Branch prefix (default: feature)")
     rootCmd.AddCommand(addCmd)
 
-    // wf rm <name>
     var rmCmd = &cobra.Command{
         Use:   "rm <name>",
         Short: "Remove a worktree (and unregister it)",
         Args:  cobra.ExactArgs(1),
         Run: func(cmd *cobra.Command, args []string) {
             name := args[0]
-            // Determine candidate paths: ../name or ../(name with slashes -> dashes)
             cwd, err := os.Getwd()
             if err != nil {
                 fmt.Println("error getting current directory:", err)
@@ -218,59 +216,17 @@ func main() {
                 return
             }
 
-            // Run on_delete hooks (non-fatal if config missing)
             if err := config.RunOnDelete(leafPath, true, nil); err != nil {
                 fmt.Println("on_delete hook error:", err)
                 return
             }
 
-            // Remove the worktree via git
             if err := terminal.RunSyncCommand("git", "worktree", "remove", leafPath); err != nil {
                 fmt.Println("error removing worktree:", err)
                 return
             }
-
-            // Unregister from Workforge registry
-            if err := unregisterLeafFromRegistry(cwd, leafPath); err != nil {
-                fmt.Println("error unregistering worktree:", err)
-                return
-            }
-
-            fmt.Println("Worktree removed and unregistered:", leafPath)
         },
     }
     rootCmd.AddCommand(rmCmd)
     rootCmd.Execute()
-}
-
-func unregisterLeafFromRegistry(basePath string, leafAbs string) error {
-    workforgePath := os.Getenv("HOME") + "/" + config.WORK_FORGE_PRJ_CONFIG_DIR
-    projects, err := config.LoadProjects(workforgePath + "/" + config.WORK_FORGE_PRJ_CONFIG_FILE)
-    if err != nil {
-        return fmt.Errorf("failed to load existing projects: %w", err)
-    }
-    // Find base name
-    var baseName string
-    for name, p := range projects {
-        if p.GitWorkTree && p.Path == basePath {
-            baseName = name
-            break
-        }
-    }
-    leafName := filepath.Base(leafAbs)
-
-    // Try to delete using base/key form first
-    if baseName != "" {
-        key := baseName + "/" + leafName
-        if _, ok := projects[key]; ok {
-            delete(projects, key)
-            return config.SaveProjects(workforgePath+"/"+config.WORK_FORGE_PRJ_CONFIG_FILE, projects)
-        }
-    }
-    // Fallback: delete plain leaf key
-    if _, ok := projects[leafName]; ok {
-        delete(projects, leafName)
-        return config.SaveProjects(workforgePath+"/"+config.WORK_FORGE_PRJ_CONFIG_FILE, projects)
-    }
-    return fmt.Errorf("worktree entry not found in registry: %s", leafName)
 }
