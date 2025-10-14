@@ -19,7 +19,6 @@ func main() {
         Use:   "wf",
         Short: "Workforge - Forge your work",
     }
-    // --- add command flags ---
     var addNewBranch bool
     var addPrefix string
 	var gwtFlag bool
@@ -35,8 +34,7 @@ func main() {
 			var repo_name string
 			if len(args) > 0 {
 				url = args[0]
-				tmp := strings.Split(url, "/")
-				repo_name = strings.TrimSuffix(tmp[len(tmp)-1], ".git")
+				repo_name = RepoUrlToName(url)
 				if len(args) > 1 {
 					path = &args[1]
 					entries, err = os.ReadDir(*path)
@@ -67,7 +65,22 @@ func main() {
 			}
 			
 			if gwtFlag {
-				config.WriteExampleConfig(path)
+				repo_name = RepoUrlToName(url)
+				var err error
+				var config_file_path string
+				if path != nil {
+					config_file_path = *path+"/"+repo_name+"/"+ config.ConfigFileName
+					_, err = os.Stat(config_file_path)
+				}else{
+					config_file_path = "./"+ repo_name+"/"+ config.ConfigFileName
+					_, err = os.Stat(config_file_path)
+				}
+				if err == nil {
+					fmt.Println("Coping wf config from the cloned repo")
+					CopyFile(config_file_path, config.ConfigFileName)
+				}else{
+					config.WriteExampleConfig(path)
+				}
 			}else{
 				if path == nil {
 					path = &repo_name
