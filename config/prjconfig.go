@@ -35,6 +35,7 @@ func LoadProjects(filename string) (Projects, error) {
 
     return projects, nil
 }
+
 func ListProjects() (Projects, error) {
 	workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR
 	if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
@@ -58,20 +59,17 @@ func ListProjectsExpanded() (Projects, map[string]bool, error) {
 
     for _, p := range base {
         if !p.GitWorkTree {
-            // Normal project: include as-is
             out[p.Name] = p
             hitmap[p.Name] = false
             continue
         }
 
-        // If this is a Git worktree leaf (i.e., .git is a file), include it directly and mark as GWT leaf
         if isGWTLeaf(p.Path) {
             out[p.Name] = p
             hitmap[p.Name] = true
             continue
         }
 
-        // Git Worktree base: list only subdirectories (exclude base)
         entries, err := os.ReadDir(p.Path)
         if err != nil {
             return nil, nil, fmt.Errorf("error reading GWT path %q: %w", p.Path, err)

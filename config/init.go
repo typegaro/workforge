@@ -36,7 +36,6 @@ func WriteExampleConfig(path *string) error {
 const WORK_FORGE_PRJ_CONFIG_DIR= ".config/workforge"
 const WORK_FORGE_PRJ_CONFIG_FILE = "workforge.json" 
 
-//gwt: git work tree
 func AddWorkforgePrj(name string ,path *string, gwt bool) error {
 	workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR 
 	absPath, err := os.Getwd()
@@ -67,16 +66,9 @@ func AddWorkforgePrj(name string ,path *string, gwt bool) error {
 	return nil
 }
 
-// AddWorkforgeLeaf adds a newly created Git worktree leaf into the Workforge registry.
-// The provided path should be the absolute filesystem path of the worktree directory.
-// The entry is stored with GitWorkTree=true so tooling can detect it needs to read
-// config from the parent directory. If the current working directory matches
-// a registered GitWorkTree root, the leaf will be keyed as "<baseName>/<leafName>"; otherwise
-// it will use just "<leafName>" as the key.
 func AddWorkforgeLeaf(absLeafPath string) error {
     workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR
 
-    // Ensure registry exists
     if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
         if err := os.MkdirAll(workforgePath, 0o755); err != nil {
             return fmt.Errorf("failed to create workforge config directory: %w", err)
@@ -88,17 +80,14 @@ func AddWorkforgeLeaf(absLeafPath string) error {
 
     projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
     if err != nil {
-        // If the file is empty or invalid, start a new registry instead of failing
         projects = make(Projects)
     }
 
-    // Try to find the base GWT project based on current working directory
     cwd, err := os.Getwd()
     if err != nil {
         return fmt.Errorf("failed to get current directory: %w", err)
     }
 
-    // Prefer matching the current working directory (when invoked from the base)
     var baseName string
     var basePath string
     for name, p := range projects {
@@ -109,7 +98,6 @@ func AddWorkforgeLeaf(absLeafPath string) error {
         }
     }
 
-    // If not found, try to match the parent directory of the leaf path to a known base
     if baseName == "" {
         parent := filepath.Dir(absLeafPath)
         for name, p := range projects {
@@ -119,7 +107,7 @@ func AddWorkforgeLeaf(absLeafPath string) error {
                 break
             }
         }
-        _ = basePath // not used further, kept for clarity/consistency
+        _ = basePath 
     }
 
     leafName := filepath.Base(absLeafPath)

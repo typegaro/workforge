@@ -185,18 +185,6 @@ func main() {
                 fmt.Println("error adding worktree:", err)
                 return
             }
-            // Register the worktree in Workforge registry
-            cwd, err := os.Getwd()
-            if err != nil {
-                fmt.Println("error getting current directory:", err)
-                return
-            }
-            folderName := strings.ReplaceAll(name, "/", "-")
-            leafAbs := filepath.Join(cwd, "..", folderName)
-            if err := config.AddWorkforgeLeaf(leafAbs); err != nil {
-                fmt.Println("error registering worktree:", err)
-                return
-            }
         },
     }
 
@@ -255,8 +243,6 @@ func main() {
     rootCmd.Execute()
 }
 
-// unregisterLeafFromRegistry removes the leaf from the Workforge registry using the same keying
-// logic as AddWorkforgeLeaf.
 func unregisterLeafFromRegistry(basePath string, leafAbs string) error {
     workforgePath := os.Getenv("HOME") + "/" + config.WORK_FORGE_PRJ_CONFIG_DIR
     projects, err := config.LoadProjects(workforgePath + "/" + config.WORK_FORGE_PRJ_CONFIG_FILE)

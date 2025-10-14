@@ -64,7 +64,6 @@ func LoadProject(path string, gwt bool, profile *string) error {
     }
 
     tmux := cfg[currentProfile].Tmux
-    // Build session name as <base>/<branch>.
     sessionBase := tmux.SessionName
     if sessionBase == "" {
         if gwt {
@@ -83,15 +82,12 @@ func LoadProject(path string, gwt bool, profile *string) error {
     return nil
 }
 
-// RunOnDelete loads config (considering GWT) and runs hooks.on_delete in the project directory.
 func RunOnDelete(projectPath string, isGWT bool, profile *string) error {
-    // Ensure we are in the project directory so hooks run in the right cwd.
     if err := EnterProjectDir(projectPath); err != nil {
         return err
     }
     cfg, err := LoadConfig(projectPath, isGWT)
     if err != nil {
-        // Non-fatal: if config missing, nothing to run.
         fmt.Println("error loading config:", err)
         return nil
     }
