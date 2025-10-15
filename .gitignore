@@ -1,3 +1,5 @@
 NOTE.md
 bin/*
 .direnv
+.gocache
+.gopath

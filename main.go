@@ -25,9 +25,9 @@ func main() {
 	var initCmd = &cobra.Command{
 		Use:   "init <url> <path>",
 		Short: "Initialize a project",
-		Args:  cobra.RangeArgs(0, 2),
+		Args:  cobra.RangeArgs(0, 1),
 		Run: func(cmd *cobra.Command, args []string) {
-			var path *string
+			var path string
 			var url string
 			var err error
 			var entries []os.DirEntry	
@@ -35,13 +35,7 @@ func main() {
 			if len(args) > 0 {
 				url = args[0]
 				repo_name = RepoUrlToName(url)
-				if len(args) > 1 {
-					path = &args[1]
-					entries, err = os.ReadDir(*path)
-				} else {
-					entries, err = os.ReadDir("./")
-				}
-
+				entries, err = os.ReadDir("./")
 				if err != nil {
 					fmt.Println("directory error:", err)
 					return
@@ -59,39 +53,32 @@ func main() {
 						fmt.Println("Directory not empty, aborting")
 						return
 					}
-
 				}
-				terminal.GitClone(url, path)
-			}
-			
-			if gwtFlag {
-				repo_name = RepoUrlToName(url)
-				var err error
-				var config_file_path string
-				if path != nil {
-					config_file_path = *path+"/"+repo_name+"/"+ config.ConfigFileName
-					_, err = os.Stat(config_file_path)
+				terminal.GitClone(url, &path)
+				if gwtFlag {
+					config_file_path := "./"+ repo_name+"/"+ config.ConfigFileName
+			    	_, err = os.Stat(config_file_path)
+					if err == nil {
+						fmt.Println("Coping wf config from the cloned repo")
+						CopyFile(config_file_path, config.ConfigFileName)
+					}else{
+						config.WriteExampleConfig(&path)
+					}
 				}else{
-					config_file_path = "./"+ repo_name+"/"+ config.ConfigFileName
-					_, err = os.Stat(config_file_path)
+					config.WriteExampleConfig(&path)
 				}
-				if err == nil {
-					fmt.Println("Coping wf config from the cloned repo")
-					CopyFile(config_file_path, config.ConfigFileName)
-				}else{
-					config.WriteExampleConfig(path)
+				config.AddWorkforgePrj(repo_name, gwtFlag)
+			} else {
+				fmt.Println("Initializing a new Workforge project")
+    			cwd, err := os.Getwd()
+				if err != nil {
+					fmt.Println("error getting current directory:", err)
+					return 
 				}
-			}else{
-				if path == nil {
-					path = &repo_name
-				} else {
-					*path = *path + "/" + repo_name
-				}
-				fmt.Println("Project path:", *path)
-				config.WriteExampleConfig(path)
+				repo_name = filepath.Base(cwd)
+				config.WriteExampleConfig(nil)
+				config.AddWorkforgePrj(repo_name, gwtFlag)
 			}
-			config.AddWorkforgePrj(repo_name, path, gwtFlag)
-			fmt.Println("Project added to Workforge")
 		},
 	}
 

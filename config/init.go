@@ -36,16 +36,14 @@ func WriteExampleConfig(path *string) error {
 const WORK_FORGE_PRJ_CONFIG_DIR= ".config/workforge"
 const WORK_FORGE_PRJ_CONFIG_FILE = "workforge.json" 
 
-func AddWorkforgePrj(name string ,path *string, gwt bool) error {
+func AddWorkforgePrj(name string, gwt bool) error {
 	workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR 
 	absPath, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	if path != nil {
-		absPath = absPath + "/" + *path
-	}
-	if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
+	fmt.Println("Adding project:", name, "path:", absPath, "gwt:", gwt)
+	if _, err := os.Stat(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE); os.IsNotExist(err) {
 		if err := os.MkdirAll(workforgePath, 0o755); err != nil {
 			return fmt.Errorf("failed to create workforge config directory: %w", err)
 		}
@@ -56,6 +54,8 @@ func AddWorkforgePrj(name string ,path *string, gwt bool) error {
 		SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects)
 	} else {
 		projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
+		fmt.Println("Workforge config:", workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE)
+		fmt.Println("Loaded existing projects", projects)
 		if err != nil {
 			return fmt.Errorf("failed to load existing projects: %w", err)
 		}else{
