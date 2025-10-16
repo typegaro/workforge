@@ -1,8 +1,8 @@
-# 🧰 Workforge (Go)
+# 🧰 Workforge 
 
 Tired of doing the exact same 4 setup steps every time you open a project? Same. Workforge is a tiny Go CLI that spins up your local dev environments with tmux and Git Worktree support. Hit `wf open`, pick a project, and-poof-windows, commands, and hooks greet you like you meant to be productive.
 
-ALPHA WARNING: This is more MVP than finished software. Interfaces, messages, and behavior can change without notice. Great for your laptop. Not your production servers.
+ALPHA WARNING: This is more MVP than finished software. Interfaces, messages, and behavior can change without notice.
 
 ## ✨ What It Does Well
 
@@ -170,7 +170,3 @@ Limitations (embrace the alpha life)
 - Tests and tighter error handling
 
 Contributions welcome - issues and PRs encouraged. Tasteful GIFs may or may not increase merge speed.
-
-## License
-
-TBD by the maintainer.
