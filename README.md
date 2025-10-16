@@ -1,9 +1,9 @@
-# 🧰 Workforge 
 
 <p align="center">
-  <img src="assets/logo.png" alt="Workforge logo" width="220" />
+  <img src="assets/logo.png" alt="Workforge logo" width="300" />
  </p>
 
+# 🧰 Workforge 
 Tired of doing the exact same 4 setup steps every time you open a project? Same. Workforge is a tiny Go CLI that spins up your local dev environments with tmux and Git Worktree support. Hit `wf open`, pick a project, and-poof-windows, commands, and hooks greet you like you meant to be productive.
 
 ALPHA WARNING: This is more MVP than finished software. Interfaces, messages, and behavior can change without notice.
