@@ -116,14 +116,6 @@ Great for monorepos or multi-worktree flows.
 - Project config: `.wfconfig.yml` (or `../.wfconfig.yml` for GWT leaves)
 - Project registry: `~/.config/workforge/workforge.json` (auto-created on first use)
 
-## Nix (optional)
-
-A simple `flake.nix` is provided for a Go dev shell:
-
-```bash
-nix develop
-```
-
 ## Quick Examples
 
 Normal project:
