@@ -1,6 +1,6 @@
 # 🧰 Workforge (Go)
 
-Tired of doing the exact same 4 setup steps every time you open a project? Same. Workforge is a tiny Go CLI that spins up your local dev environments with tmux and Git Worktree support. Hit `wf open`, pick a project, and—poof—windows, commands, and hooks greet you like you meant to be productive.
+Tired of doing the exact same 4 setup steps every time you open a project? Same. Workforge is a tiny Go CLI that spins up your local dev environments with tmux and Git Worktree support. Hit `wf open`, pick a project, and-poof-windows, commands, and hooks greet you like you meant to be productive.
 
 ALPHA WARNING: This is more MVP than finished software. Interfaces, messages, and behavior can change without notice. Great for your laptop. Not your production servers.
 
@@ -44,7 +44,7 @@ Note: you choose the binary name via `-o wf`. The root command is `wf`.
   - With URL: clone a repository and register it. Writes an example `.wfconfig.yml` into the cloned project.
   - Without URL: register the current directory and write an example `.wfconfig.yml` here.
   - Flags:
-    - `-t, --gwt` — mark as a Git Worktree root. Subdirectories become selectable leaves; config is read from the parent.
+    - `-t, --gwt` - mark as a Git Worktree root. Subdirectories become selectable leaves; config is read from the parent.
 
 - `wf open`
   - Launch a fuzzy finder with all registered entries.
@@ -59,7 +59,7 @@ Note: you choose the binary name via `-o wf`. The root command is `wf`.
 - `wf add <name> [base-branch]`
   - Create a new worktree from an existing branch, or create a new branch + worktree.
   - Flags:
-    - `-b` — create a new branch (prefixed by `--prefix`, default `feature`), optional base branch (default `main`).
+    - `-b` - create a new branch (prefixed by `--prefix`, default `feature`), optional base branch (default `main`).
 
 - `wf rm <name>`
   - Remove a worktree and run any `on_delete` hooks first.
@@ -89,12 +89,12 @@ defoult:
 
 Supported today:
 
-- `foreground` — shell command to run when `tmux` is not provided.
-- `hooks.on_load` — commands run before `foreground`/`tmux`.
-- `hooks.on_delete` — commands run by `wf rm` before removal.
-- `tmux.attach` — whether to attach after creating the session.
-- `tmux.session_name` — tmux session name; if empty, inferred (and suffixed with the current branch like `repo/branch`).
-- `tmux.windows` — list of commands, one per tmux window.
+- `foreground` - shell command to run when `tmux` is not provided.
+- `hooks.on_load` - commands run before `foreground`/`tmux`.
+- `hooks.on_delete` - commands run by `wf rm` before removal.
+- `tmux.attach` - whether to attach after creating the session.
+- `tmux.session_name` - tmux session name; if empty, inferred (and suffixed with the current branch like `repo/branch`).
+- `tmux.windows` - list of commands, one per tmux window.
 
 Notes:
 
@@ -169,7 +169,7 @@ Limitations (embrace the alpha life)
 - Clearer help and consistent messaging
 - Tests and tighter error handling
 
-Contributions welcome — issues and PRs encouraged. Tasteful GIFs may or may not increase merge speed.
+Contributions welcome - issues and PRs encouraged. Tasteful GIFs may or may not increase merge speed.
 
 ## License
 
