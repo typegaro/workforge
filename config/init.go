@@ -4,6 +4,7 @@ import (
     "fmt"
     "os"
     "path/filepath"
+    "workforge/terminal"
 )
 
 const ConfigFileName = ".wfconfig.yml"
@@ -40,7 +41,7 @@ func AddWorkforgePrj(name string, gwt bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	fmt.Println("Adding project:", name, "path:", absPath, "gwt:", gwt)
+    terminal.Info("Adding project: %s (path: %s, gwt: %t)", name, absPath, gwt)
 	if _, err := os.Stat(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE); os.IsNotExist(err) {
 		if err := os.MkdirAll(workforgePath, 0o755); err != nil {
 			return fmt.Errorf("failed to create workforge config directory: %w", err)
@@ -51,17 +52,17 @@ func AddWorkforgePrj(name string, gwt bool) error {
 		projects := Projects{name: {Name: name, Path: absPath, GitWorkTree: gwt}}
 		SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects)
 	} else {
-		projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
-		fmt.Println("Workforge config:", workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE)
-		fmt.Println("Loaded existing projects", projects)
-		if err != nil {
-			return fmt.Errorf("failed to load existing projects: %w", err)
-		}else{
-			projects[name] = Project{Name: name, Path: absPath, GitWorkTree: gwt}
-			SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects)
-		}
-	}
-	return nil
+        projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
+        terminal.Debug("Workforge config: %s", workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE)
+        terminal.Debug("Loaded existing projects: %+v", projects)
+        if err != nil {
+            return fmt.Errorf("failed to load existing projects: %w", err)
+        }else{
+            projects[name] = Project{Name: name, Path: absPath, GitWorkTree: gwt}
+            SaveProjects(workforgePath+"/"+WORK_FORGE_PRJ_CONFIG_FILE, projects)
+        }
+    }
+    return nil
 }
 
 func AddWorkforgeLeaf(absLeafPath string) error {

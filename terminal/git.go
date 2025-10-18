@@ -7,18 +7,18 @@ import (
 
 func GitClone(repoURL string, destination *string) error {
 	var err error
-	if destination != nil{
-		fmt.Printf("Clone %s in %s\n", repoURL, *destination)
-		err = RunSyncCommand("git", "clone", repoURL, *destination)
-	}else {
-		fmt.Printf("Clone %s\n", repoURL)
-		err = RunSyncCommand("git", "clone", repoURL)
-	}
+    if destination != nil{
+        Info("Cloning %s into %s", repoURL, *destination)
+        err = RunSyncCommand("git", "clone", repoURL, *destination)
+    }else {
+        Info("Cloning %s", repoURL)
+        err = RunSyncCommand("git", "clone", repoURL)
+    }
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %s", err)
 	}
-	fmt.Printf("Repository cloned successfully\n")
-	return nil
+    Success("Repository cloned successfully")
+    return nil
 }
 func AddNewWorkTree(name string,prefix string, branch string, newb bool) error {
 	if newb {
@@ -27,8 +27,8 @@ func AddNewWorkTree(name string,prefix string, branch string, newb bool) error {
 			return fmt.Errorf("failed to add the new worktree: %s", err)
 		}
 	}
-	fmt.Println("New worktree added successfully")
-	return nil
+    Success("New worktree added successfully")
+    return nil
 }
 func AddWorkTree(name string) error {
 	folder_name := "../" + strings.ReplaceAll(name, "/", "-")
@@ -36,8 +36,8 @@ func AddWorkTree(name string) error {
 	if err != nil {
 		return fmt.Errorf("failed to add the new worktree: %s", err)
 	}
-	fmt.Println("New worktree added successfully")
-	return nil
+    Success("New worktree added successfully")
+    return nil
 }
 
 // GitCurrentBranch returns the current git branch name for the working directory.

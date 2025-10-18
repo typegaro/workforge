@@ -2,7 +2,6 @@ package main
 
 import (
     "os"
-    "fmt"
     "sort"
     "errors"
     "strings"
@@ -35,52 +34,52 @@ func main() {
 			if len(args) > 0 {
 				url = args[0]
 				repo_name = RepoUrlToName(url)
-				entries, err = os.ReadDir("./")
-				if err != nil {
-					fmt.Println("directory error:", err)
-					return
-				}
-				if len(entries) > 0 {
-					if !gwtFlag {
-						for _, entry := range entries {
-							if entry.Name() == config.ConfigFileName{
-								fmt.Println("This is a Workforge directory")
-								fmt.Println("You can't clone a new repo here")
-								return
-							}
-						}
-					}else{
-						fmt.Println("Directory not empty, aborting")
-						return
-					}
-				}
-				terminal.GitClone(url, &path)
-				if gwtFlag {
-					config_file_path := "./"+ repo_name+"/"+ config.ConfigFileName
-			    	_, err = os.Stat(config_file_path)
-					if err == nil {
-						fmt.Println("Coping wf config from the cloned repo")
-						CopyFile(config_file_path, config.ConfigFileName)
-					}else{
-						config.WriteExampleConfig(&path)
-					}
-				}else{
-					config.WriteExampleConfig(&path)
-				}
-				config.AddWorkforgePrj(repo_name, gwtFlag)
-			} else {
-				fmt.Println("Initializing a new Workforge project")
-    			cwd, err := os.Getwd()
-				if err != nil {
-					fmt.Println("error getting current directory:", err)
-					return 
-				}
-				repo_name = filepath.Base(cwd)
-				config.WriteExampleConfig(nil)
-				config.AddWorkforgePrj(repo_name, gwtFlag)
-			}
-		},
-	}
+                entries, err = os.ReadDir("./")
+                if err != nil {
+                    terminal.Error("directory error: %v", err)
+                    return
+                }
+                if len(entries) > 0 {
+                    if !gwtFlag {
+                        for _, entry := range entries {
+                            if entry.Name() == config.ConfigFileName{
+                                terminal.Warn("This is a Workforge directory")
+                                terminal.Warn("You can't clone a new repo here")
+                                return
+                            }
+                        }
+                    }else{
+                        terminal.Warn("Directory not empty, aborting")
+                        return
+                    }
+                }
+                terminal.GitClone(url, &path)
+                if gwtFlag {
+                    config_file_path := "./"+ repo_name+"/"+ config.ConfigFileName
+                    _, err = os.Stat(config_file_path)
+                    if err == nil {
+                        terminal.Info("Copying Workforge config from the cloned repo")
+                        CopyFile(config_file_path, config.ConfigFileName)
+                    }else{
+                        config.WriteExampleConfig(&path)
+                    }
+                }else{
+                    config.WriteExampleConfig(&path)
+                }
+                config.AddWorkforgePrj(repo_name, gwtFlag)
+            } else {
+                terminal.Info("Initializing a new Workforge project")
+                cwd, err := os.Getwd()
+                if err != nil {
+                    terminal.Error("error getting current directory: %v", err)
+                    return 
+                }
+                repo_name = filepath.Base(cwd)
+                config.WriteExampleConfig(nil)
+                config.AddWorkforgePrj(repo_name, gwtFlag)
+            }
+        },
+    }
 
 	initCmd.Flags().BoolVarP(&gwtFlag, "gwt", "t", false, "Use Git worktree")
 
@@ -112,14 +111,14 @@ func main() {
 		Short: "Fuzzy finder to open a Workforge project",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			projs, hitmap, err := config.ListProjectsExpanded()
-			if err != nil {
-				fmt.Println("error loading projects:", err)
-				return
-			}
-			if len(projs) == 0 {
-				return
-			}
+            projs, hitmap, err := config.ListProjectsExpanded()
+            if err != nil {
+                terminal.Error("error loading projects: %v", err)
+                return
+            }
+            if len(projs) == 0 {
+                return
+            }
 
 			items := make([]projItem, 0, len(projs))
 			for name, p := range projs {
@@ -140,22 +139,22 @@ func main() {
 				},
 				fuzzyfinder.WithPromptString(" Select project > "),
 			)
-			if err != nil {
-				if errors.Is(err, fuzzyfinder.ErrAbort) {
-					return
-				}
-				fmt.Println("fuzzy error:", err)
-				return
-			}
+            if err != nil {
+                if errors.Is(err, fuzzyfinder.ErrAbort) {
+                    return
+                }
+                terminal.Error("fuzzy error: %v", err)
+                return
+            }
 
 			chosen := items[idx]
 			// Inspect profiles for the selected project and prompt if multiple
-			cfg, err := config.LoadConfig(chosen.Path, chosen.IsGWT)
-			if err != nil {
-				fmt.Println("error loading config:", err)
-				config.LoadProject(chosen.Path, chosen.IsGWT, nil)
-				return
-			}
+            cfg, err := config.LoadConfig(chosen.Path, chosen.IsGWT)
+            if err != nil {
+                terminal.Error("error loading config: %v", err)
+                config.LoadProject(chosen.Path, chosen.IsGWT, nil)
+                return
+            }
 
 			profiles := make([]string, 0, len(cfg))
 			for name := range cfg {
@@ -170,19 +169,19 @@ func main() {
 					func(i int) string { return profiles[i] },
 					fuzzyfinder.WithPromptString(" Select profile > "),
 				)
-				if err != nil {
-					if errors.Is(err, fuzzyfinder.ErrAbort) {
-						return
-					}
-					fmt.Println("fuzzy error:", err)
-					return
-				}
-				selectedProfile = profiles[pidx]
-			} else if len(profiles) == 1 {
-				selectedProfile = profiles[0]
-			} else {
-				selectedProfile = config.DefaultProfile
-			}
+                if err != nil {
+                    if errors.Is(err, fuzzyfinder.ErrAbort) {
+                        return
+                    }
+                    terminal.Error("fuzzy error: %v", err)
+                    return
+                }
+                selectedProfile = profiles[pidx]
+            } else if len(profiles) == 1 {
+                selectedProfile = profiles[0]
+            } else {
+                selectedProfile = config.DefaultProfile
+            }
 
 			if selectedProfile != "" {
 				config.LoadProject(chosen.Path, chosen.IsGWT, &selectedProfile)
@@ -208,25 +207,25 @@ func main() {
                 if addPrefix == "" {
                     addPrefix = "feature"
                 }
-                if err := terminal.AddNewWorkTree(name, addPrefix, base, true); err != nil {
-                    fmt.Println("error creating new worktree:", err)
+            if err := terminal.AddNewWorkTree(name, addPrefix, base, true); err != nil {
+                    terminal.Error("error creating new worktree: %v", err)
                     return
-                }
+            }
                 // Register the new worktree in Workforge registry
                 cwd, err := os.Getwd()
                 if err != nil {
-                    fmt.Println("error getting current directory:", err)
+                    terminal.Error("error getting current directory: %v", err)
                     return
                 }
                 leafAbs := filepath.Join(cwd, "..", name)
                 if err := config.AddWorkforgeLeaf(leafAbs); err != nil {
-                    fmt.Println("error registering worktree:", err)
+                    terminal.Error("error registering worktree: %v", err)
                 }
                 return
             }
             // Use an existing branch as worktree
             if err := terminal.AddWorkTree(name); err != nil {
-                fmt.Println("error adding worktree:", err)
+                terminal.Error("error adding worktree: %v", err)
                 return
             }
         },
@@ -244,7 +243,7 @@ func main() {
             name := args[0]
             cwd, err := os.Getwd()
             if err != nil {
-                fmt.Println("error getting current directory:", err)
+                terminal.Error("error getting current directory: %v", err)
                 return
             }
             cand1 := filepath.Join(cwd, "..", name)
@@ -256,17 +255,17 @@ func main() {
             } else if st, err := os.Stat(cand2); err == nil && st.IsDir() {
                 leafPath = cand2
             } else {
-                fmt.Println("could not locate worktree directory for:", name)
+                terminal.Warn("could not locate worktree directory for: %s", name)
                 return
             }
 
             if err := config.RunOnDelete(leafPath, true, nil); err != nil {
-                fmt.Println("on_delete hook error:", err)
+                terminal.Error("on_delete hook error: %v", err)
                 return
             }
 
             if err := terminal.RunSyncCommand("git", "worktree", "remove", leafPath); err != nil {
-                fmt.Println("error removing worktree:", err)
+                terminal.Error("error removing worktree: %v", err)
                 return
             }
         },

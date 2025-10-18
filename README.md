@@ -105,6 +105,16 @@ Supported today:
 - `tmux.session_name` - tmux session name; if empty, inferred (and suffixed with the current branch like `repo/branch`).
 - `tmux.windows` - list of commands, one per tmux window.
 
+### Logging and Aesthetics
+
+- Workforge prints colorful, icon-based messages inspired by npm-style output.
+- Configure verbosity per profile via `log_level` in `.wfconfig.yml`.
+- Accepted values: `DEBUG`, `INFO` (default), `WARN`, `ERROR`, `SILENT`.
+- Examples:
+  - `DEBUG` shows detailed steps (🐛), window creation, hooks.
+  - `INFO` shows key actions (ℹ) and successes (✔).
+  - `WARN` shows warnings (⚠), `ERROR` shows errors (✖).
+
 Notes:
 
 - In Worktree mode, config is loaded from `../.wfconfig.yml`.

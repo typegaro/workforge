@@ -35,7 +35,7 @@ func LoadProject(path string, gwt bool, profile *string) error {
 
     cfg, err := LoadConfig(path, gwt)
     if err != nil {
-        fmt.Println("error loading config:", err)
+        terminal.Error("error loading config: %v", err)
         return nil
     }
 
@@ -49,14 +49,12 @@ func LoadProject(path string, gwt bool, profile *string) error {
     }
 
     logLevel := cfg[currentProfile].LogLevel
+    // configure global logger once profile is known
+    terminal.SetLogLevelFromString(logLevel)
     onLoad := cfg[currentProfile].Hooks.OnLoad
-    if logLevel == "DEBUG" {
-        fmt.Println("using profile:", currentProfile)
-    }
+    terminal.Debug("using profile: %s", currentProfile)
     for i, cmd := range onLoad {
-        if logLevel == "DEBUG" {
-            fmt.Println("running on_load hook #", i+1, ":", cmd)
-        }
+        terminal.Debug("running on_load hook #%d: %s", i+1, cmd)
         if err := terminal.RunSyncUserShell(cmd); err != nil {
             return fmt.Errorf("hook %d failed: %w", i+1, err)
         }
@@ -92,7 +90,7 @@ func RunOnDelete(projectPath string, isGWT bool, profile *string) error {
     }
     cfg, err := LoadConfig(projectPath, isGWT)
     if err != nil {
-        fmt.Println("error loading config:", err)
+        terminal.Error("error loading config: %v", err)
         return nil
     }
     currentProfile := DefaultProfile
@@ -105,7 +103,7 @@ func RunOnDelete(projectPath string, isGWT bool, profile *string) error {
     }
     onDelete := cfg[currentProfile].Hooks.OnDelete
     for i, cmd := range onDelete {
-        fmt.Println("running on_delete hook #", i+1, ":", cmd)
+        terminal.Info("running on_delete hook #%d: %s", i+1, cmd)
         if err := terminal.RunSyncUserShell(cmd); err != nil {
             return fmt.Errorf("on_delete hook %d failed: %w", i+1, err)
         }

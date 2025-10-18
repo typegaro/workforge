@@ -1,7 +1,5 @@
 package terminal
 
-import "fmt"
-
 func TmuxNewSession(path string,sessionName string, attach bool, windows []string) error {
 	if err := RunSyncCommand("tmux","new-session", "-s", sessionName, "-d"); err != nil {
 		return err
@@ -10,7 +8,7 @@ func TmuxNewSession(path string,sessionName string, attach bool, windows []strin
 		return err
 	}
 	for _, win := range windows[1:] {
-		fmt.Printf("Creating window: %s\n", win)
+		Step("Creating window: %s", win)
 
 		if err := RunSyncCommand("tmux", "new-window", "-t", sessionName); err != nil {
 			return err
