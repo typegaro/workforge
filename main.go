@@ -84,19 +84,24 @@ func main() {
 
 	initCmd.Flags().BoolVarP(&gwtFlag, "gwt", "t", false, "Use Git worktree")
 
+	var loadProfile string
 	var loadCmd = &cobra.Command{
 		Use:   "load [dir]",
 		Short: "Load a Workforge project",
 		Args:  cobra.RangeArgs(0, 1),
 		Run: func(cmd *cobra.Command, args []string) {
 			path := "../"
-			var profile *string
 			if len(args) > 0 {
 				path = path + args[0]
 			}
-			config.LoadProject(path,false, profile)
+			if loadProfile != "" {
+				config.LoadProject(path, false, &loadProfile)
+				return
+			}
+			config.LoadProject(path, false, nil)
 		},
 	}
+	loadCmd.Flags().StringVarP(&loadProfile, "profile", "p", "", "Profile name to use")
 	type projItem struct {
 		config.Project
 		IsGWT bool
@@ -144,7 +149,46 @@ func main() {
 			}
 
 			chosen := items[idx]
-			config.LoadProject(chosen.Path,chosen.IsGWT, nil)
+			// Inspect profiles for the selected project and prompt if multiple
+			cfg, err := config.LoadConfig(chosen.Path, chosen.IsGWT)
+			if err != nil {
+				fmt.Println("error loading config:", err)
+				config.LoadProject(chosen.Path, chosen.IsGWT, nil)
+				return
+			}
+
+			profiles := make([]string, 0, len(cfg))
+			for name := range cfg {
+				profiles = append(profiles, name)
+			}
+			sort.Strings(profiles)
+
+			selectedProfile := ""
+			if len(profiles) > 1 {
+				pidx, err := fuzzyfinder.Find(
+					profiles,
+					func(i int) string { return profiles[i] },
+					fuzzyfinder.WithPromptString(" Select profile > "),
+				)
+				if err != nil {
+					if errors.Is(err, fuzzyfinder.ErrAbort) {
+						return
+					}
+					fmt.Println("fuzzy error:", err)
+					return
+				}
+				selectedProfile = profiles[pidx]
+			} else if len(profiles) == 1 {
+				selectedProfile = profiles[0]
+			} else {
+				selectedProfile = config.DefaultProfile
+			}
+
+			if selectedProfile != "" {
+				config.LoadProject(chosen.Path, chosen.IsGWT, &selectedProfile)
+				return
+			}
+			config.LoadProject(chosen.Path, chosen.IsGWT, nil)
 		},
 	}
 

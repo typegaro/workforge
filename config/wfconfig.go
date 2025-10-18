@@ -42,6 +42,10 @@ func LoadProject(path string, gwt bool, profile *string) error {
     currentProfile := DefaultProfile
     if profile != nil && *profile != "" {
         currentProfile = *profile
+    } else if len(cfg) == 1 {
+        for k := range cfg { // pick the only defined profile
+            currentProfile = k
+        }
     }
 
     logLevel := cfg[currentProfile].LogLevel
@@ -94,6 +98,10 @@ func RunOnDelete(projectPath string, isGWT bool, profile *string) error {
     currentProfile := DefaultProfile
     if profile != nil && *profile != "" {
         currentProfile = *profile
+    } else if len(cfg) == 1 {
+        for k := range cfg { // pick the only defined profile
+            currentProfile = k
+        }
     }
     onDelete := cfg[currentProfile].Hooks.OnDelete
     for i, cmd := range onDelete {

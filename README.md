@@ -56,9 +56,14 @@ Note: you choose the binary name via `-o wf`. The root command is `wf`.
   - On selection: load `.wfconfig.yml`, run `on_load` hooks, then either
     - create/attach a tmux session as configured, or
     - run the `foreground` command.
+  - If the config contains multiple profiles, a second fuzzy prompt lets you choose the profile.
+  - If there is exactly one profile, it is selected automatically regardless of its name.
 
 - `wf load [dir]` (advanced)
   - Load a path directly. For everyday use, prefer `open`.
+  - Flags:
+    - `-p, --profile` - select a profile defined in `.wfconfig.yml`.
+  - If no profile is specified and the config has exactly one profile, that profile is used automatically.
 
 - `wf add <name> [base-branch]`
   - Create a new worktree from an existing branch, or create a new branch + worktree.
