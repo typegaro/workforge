@@ -7,10 +7,8 @@ import (
 )
 
 const ConfigFileName = ".wfconfig.yml"
-const ExampleConfigYAML = `# Workforge configuration file (YAML)
-# Add younoder own templates below, e.g. Node:
-# Profile names 
-defoult:
+const ExampleConfigYAML = `
+default:
   log_level: "DEBUG"
   foreground: "nvim ."
   hooks:

@@ -7,7 +7,7 @@ import (
     "workforge/terminal"
 )
 
-const DefaultProfile = "defoult"
+const DefaultProfile = "default"
 
 func ResolveConfigPath(projectPath string, isGWT bool) string {
     if isGWT {

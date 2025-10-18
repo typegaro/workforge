@@ -72,12 +72,12 @@ Note: you choose the binary name via `-o wf`. The root command is `wf`.
 
 Place a `.wfconfig.yml` in your project root. In Git Worktree mode, config is read from the parent of the leaf directory.
 
-Important (and yes, intentional): the default profile is spelled `defoult`. If you don’t specify a profile, this one is used.
+Important (and yes, intentional): the default profile is spelled `default`. If you don’t specify a profile, this one is used.
 
 Example:
 
 ```yaml
-defoult:
+default:
   log_level: "DEBUG"          # optional: enables verbose messages
   foreground: "nvim ."        # used when tmux is not configured
   hooks:
