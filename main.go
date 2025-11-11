@@ -207,17 +207,18 @@ func main() {
                 if addPrefix == "" {
                     addPrefix = "feature"
                 }
-            if err := terminal.AddNewWorkTree(name, addPrefix, base, true); err != nil {
+                if err := terminal.AddNewWorkTree(name, addPrefix, base); err != nil {
                     terminal.Error("error creating new worktree: %v", err)
                     return
-            }
+                }
                 // Register the new worktree in Workforge registry
                 cwd, err := os.Getwd()
                 if err != nil {
                     terminal.Error("error getting current directory: %v", err)
                     return
                 }
-                leafAbs := filepath.Join(cwd, "..", name)
+                leafDir := terminal.WorktreeLeafDirName(name)
+                leafAbs := filepath.Join(cwd, "..", leafDir)
                 if err := config.AddWorkforgeLeaf(leafAbs); err != nil {
                     terminal.Error("error registering worktree: %v", err)
                 }
