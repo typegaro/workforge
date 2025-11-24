@@ -199,30 +199,23 @@ func main() {
         Args:  cobra.RangeArgs(1, 2),
         Run: func(cmd *cobra.Command, args []string) {
             name := args[0]
-            base := "main"
-            if len(args) > 1 {
-                base = args[1]
-            }
             if addNewBranch {
+            	base := "main"
                 if addPrefix == "" {
                     addPrefix = "feature"
                 }
+				if len(args) > 1 {
+                	base = args[1]
+            	}
                 if err := terminal.AddNewWorkTree(name, addPrefix, base); err != nil {
                     terminal.Error("error creating new worktree: %v", err)
                     return
                 }
-                // Register the new worktree in Workforge registry
-                cwd, err := os.Getwd()
+                _ , err := os.Getwd()
                 if err != nil {
                     terminal.Error("error getting current directory: %v", err)
                     return
                 }
-                leafDir := terminal.WorktreeLeafDirName(name)
-                leafAbs := filepath.Join(cwd, "..", leafDir)
-                if err := config.AddWorkforgeLeaf(leafAbs); err != nil {
-                    terminal.Error("error registering worktree: %v", err)
-                }
-                return
             }
             // Use an existing branch as worktree
             if err := terminal.AddWorkTree(name); err != nil {

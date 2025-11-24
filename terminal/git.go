@@ -22,7 +22,7 @@ func GitClone(repoURL string, destination *string) error {
 	return nil
 }
 func AddNewWorkTree(name string, prefix string, baseBranch string) error {
-	folderName := worktreeFolderName(name)
+	folderName := worktreeFolderName(prefix+"-"+name)
 	branchName := worktreeBranchName(name, prefix)
 	if branchName == "" {
 		branchName = worktreeLeafName(name)
