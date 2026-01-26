@@ -4,14 +4,14 @@
  </p>
 
 # 🧰 Workforge 
-Tired of doing the exact same 4 setup steps every time you open a project? Same. Workforge is a tiny Go CLI that spins up your local dev environments with tmux and Git Worktree support. Hit `wf open`, pick a project, and-poof-windows, commands, and hooks greet you like you meant to be productive.
+Tired of doing the exact same 4 setup steps every time you open a project? Same. Workforge is a tiny Go CLI that spins up your local dev environments with tmux and Git Worktree support. Run `wf list` to enumerate projects, then `wf open <project-name>` to launch one.
 
 ALPHA WARNING: This is more MVP than finished software. Interfaces, messages, and behavior can change without notice.
 
 ## ✨ What It Does Well
 
 - Keeps a project registry at `~/.config/workforge/workforge.json`.
-- Fuzzy-finds projects or Git Worktree leaf directories and loads them fast.
+- Lists projects or Git Worktree leaf directories for external selection tools.
 - Per-project YAML config (`.wfconfig.yml`) with `on_load` hooks and either a `foreground` command or a tmux session.
 - Git Worktree mode: register a base directory and open its leaves as individual projects.
 - Worktree helpers: `wf add` to create/add worktrees, `wf rm` to remove them (with `on_delete` hooks).
@@ -50,14 +50,15 @@ Note: you choose the binary name via `-o wf`. The root command is `wf`.
   - Flags:
     - `-t, --gwt` - mark as a Git Worktree root. Subdirectories become selectable leaves; config is read from the parent.
 
-- `wf open`
-  - Launch a fuzzy finder with all registered entries.
-  - Normal entries are plain projects; GWT entries are worktree leaves.
-  - On selection: load `.wfconfig.yml`, run `on_load` hooks, then either
+- `wf list`
+  - Print all registered project names.
+  - GWT entries are worktree leaves listed as `root/leaf`.
+
+- `wf open <project-name>`
+  - Load `.wfconfig.yml`, run `on_load` hooks, then either
     - create/attach a tmux session as configured, or
     - run the `foreground` command.
-  - If the config contains multiple profiles, a second fuzzy prompt lets you choose the profile.
-  - If there is exactly one profile, it is selected automatically regardless of its name.
+  - If multiple profiles exist, pass `--profile` (or use `default`).
 
 - `wf load [dir]` (advanced)
   - Load a path directly. For everyday use, prefer `open`.
@@ -125,7 +126,7 @@ Notes:
 Using `--gwt` with `wf init` registers a worktree root. Workforge then:
 
 - stores the base path in the registry;
-- lists only first-level subdirectories in `wf open` (not the base itself);
+- lists only first-level subdirectories in `wf list` (not the base itself);
 - treats each subdirectory as an openable project and reads config from the parent.
 
 Great for monorepos or multi-worktree flows.
@@ -143,8 +144,9 @@ Normal project:
 # Clone and register
 wf init https://github.com/org/repo.git
 
-# Fuzzy-open and load the setup
-wf open
+# List projects, then open one
+wf list
+wf open <project-name>
 ```
 
 Worktree root + open a leaf:
@@ -154,12 +156,13 @@ Worktree root + open a leaf:
 wf init https://github.com/org/mono.git --gwt
 
 # Create a worktree leaf with git, then open it
-wf open
+wf list
+wf open <worktree-root/leaf>
 ```
 
 ## Personal Workflow (tmux FTW)
 
-- I open projects with `wf open`; if configured, Workforge creates/uses a tmux session per project.
+- I list projects with `wf list`, then open with `wf open <name>`; if configured, Workforge creates/uses a tmux session per project.
 - Session names include the branch when available, e.g. `repo/branch`, so you instantly know where you are.
 - To jump between projects/branches fast: in tmux, press `Ctrl-b` then `s` to list sessions and select the one you want.
   - In practice: `Ctrl-b s` → pick → boom, you’re in the right project/branch.
@@ -168,7 +171,7 @@ wf open
 
 Strengths
 
-- Fast, minimal friction: fuzzy-find + auto-setup beat muscle memory.
+- Fast, minimal friction: `wf list` + `wf open` keep setup quick.
 - tmux integration: predictable windows and commands, branch-aware session names.
 - Git Worktree aware: treat leaves as first-class projects without extra config duplication.
 - Simple YAML: a tiny `.wfconfig.yml` drives your flow.
@@ -177,13 +180,13 @@ Limitations (embrace the alpha life)
 
 - ALPHA: command names, help text, and messages may change.
 - Only `on_load` and `on_delete` hooks are executed today; others are defined but unused.
-- No dedicated `list` command yet (use `wf open` to browse).
+- No built-in interactive selector; bring your own tooling.
 - Requires a POSIX shell; your shell comes from `$SHELL`.
 
 ## Roadmap
 
 - Richer tmux UX (layouts, panes, smarter attach)
-- Registry management commands (list, rename, prune)
+- Registry management commands (rename, prune)
 - More hooks wired up (`on_create`, `on_close`)
 - Clearer help and consistent messaging
 - Tests and tighter error handling
