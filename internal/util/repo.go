@@ -1,13 +1,15 @@
-package main 
+package util
+
 import (
-	"strings"
 	"os"
+	"strings"
 )
 
-func RepoUrlToName(url string) string{
-	tmp := strings.Split(url, "/")
-	return strings.TrimSuffix(tmp[len(tmp)-1], ".git")
+func RepoUrlToName(url string) string {
+	parts := strings.Split(url, "/")
+	return strings.TrimSuffix(parts[len(parts)-1], ".git")
 }
+
 func CopyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {

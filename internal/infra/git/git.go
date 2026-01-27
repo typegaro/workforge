@@ -1,38 +1,42 @@
-package terminal
+package git
 
 import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	execinfra "workforge/internal/infra/exec"
+	"workforge/internal/infra/log"
 )
 
 func GitClone(repoURL string, destination *string) error {
 	var err error
 	if destination != nil {
-		Info("Cloning %s into %s", repoURL, *destination)
-		err = RunSyncCommand("git", "clone", repoURL, *destination)
+		log.Info("Cloning %s into %s", repoURL, *destination)
+		err = execinfra.RunSyncCommand("git", "clone", repoURL, *destination)
 	} else {
-		Info("Cloning %s", repoURL)
-		err = RunSyncCommand("git", "clone", repoURL)
+		log.Info("Cloning %s", repoURL)
+		err = execinfra.RunSyncCommand("git", "clone", repoURL)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %s", err)
 	}
-	Success("Repository cloned successfully")
+	log.Success("Repository cloned successfully")
 	return nil
 }
+
 func AddNewWorkTree(name string, prefix string, baseBranch string) error {
-	folderName := worktreeFolderName(prefix+"-"+name)
+	folderName := worktreeFolderName(prefix + "-" + name)
 	branchName := worktreeBranchName(name, prefix)
 	if branchName == "" {
 		branchName = worktreeLeafName(name)
 	}
 
 	args := []string{"worktree", "add", folderName, "-b", branchName, baseBranch}
-	if err := RunSyncCommand("git", args...); err != nil {
+	if err := execinfra.RunSyncCommand("git", args...); err != nil {
 		return fmt.Errorf("failed to add the new worktree: %s", err)
 	}
-	Success("New worktree added successfully")
+	log.Success("New worktree added successfully")
 	return nil
 }
 
@@ -42,11 +46,23 @@ func AddWorkTree(name string) error {
 	if branchRef == "" {
 		branchRef = name
 	}
-	if err := RunSyncCommand("git", "worktree", "add", folderName, branchRef); err != nil {
+	if err := execinfra.RunSyncCommand("git", "worktree", "add", folderName, branchRef); err != nil {
 		return fmt.Errorf("failed to add the new worktree: %s", err)
 	}
-	Success("New worktree added successfully")
+	log.Success("New worktree added successfully")
 	return nil
+}
+
+func WorktreeLeafDirName(name string) string {
+	return worktreeLeafName(name)
+}
+
+func GitCurrentBranch() (string, error) {
+	out, err := execinfra.RunOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("failed to get current branch: %w", err)
+	}
+	return out, nil
 }
 
 func worktreeFolderName(name string) string {
@@ -82,17 +98,4 @@ func worktreeLeafName(name string) string {
 		sanitized = "worktree"
 	}
 	return sanitized
-}
-
-func WorktreeLeafDirName(name string) string {
-	return worktreeLeafName(name)
-}
-
-// GitCurrentBranch returns the current git branch name for the working directory.
-func GitCurrentBranch() (string, error) {
-	out, err := RunOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return "", fmt.Errorf("failed to get current branch: %w", err)
-	}
-	return out, nil
 }

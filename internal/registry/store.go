@@ -1,4 +1,4 @@
-package config
+package registry
 
 import (
 	"encoding/json"
@@ -8,11 +8,40 @@ import (
 	"sort"
 )
 
+const WorkForgeConfigDir = ".config/workforge"
+const WorkForgeConfigFile = "workforge.json"
+
 type Projects map[string]Project
+
 type Project struct {
 	Name        string `json:"name"`
 	Path        string `json:"path"`
 	GitWorkTree bool   `json:"git_work_tree"`
+}
+
+type ProjectEntry struct {
+	Project
+	IsGWT bool
+}
+
+func RegistryPath() string {
+	return filepath.Join(os.Getenv("HOME"), WorkForgeConfigDir, WorkForgeConfigFile)
+}
+
+func EnsureRegistry() (string, error) {
+	path := RegistryPath()
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", fmt.Errorf("failed to create workforge config directory: %w", err)
+		}
+	}
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
+			return "", fmt.Errorf("failed to create workforge config file: %w", err)
+		}
+	}
+	return path, nil
 }
 
 func SaveProjects(filename string, projects Projects) error {
@@ -20,7 +49,6 @@ func SaveProjects(filename string, projects Projects) error {
 	if err != nil {
 		return fmt.Errorf("error marshalling JSON: %w", err)
 	}
-
 	return os.WriteFile(filename, data, 0644)
 }
 
@@ -29,21 +57,19 @@ func LoadProjects(filename string) (Projects, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
-
 	var projects Projects
 	if err := json.Unmarshal(data, &projects); err != nil {
 		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
-
 	return projects, nil
 }
 
 func ListProjects() (Projects, error) {
-	workforgePath := os.Getenv("HOME") + "/" + WORK_FORGE_PRJ_CONFIG_DIR
+	workforgePath := filepath.Join(os.Getenv("HOME"), WorkForgeConfigDir)
 	if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("workforge config directory does not exist")
 	}
-	projects, err := LoadProjects(workforgePath + "/" + WORK_FORGE_PRJ_CONFIG_FILE)
+	projects, err := LoadProjects(filepath.Join(workforgePath, WorkForgeConfigFile))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load existing projects: %w", err)
 	}
@@ -55,7 +81,6 @@ func ListProjectsExpanded() (Projects, map[string]bool, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
 	out := make(Projects)
 	hitmap := make(map[string]bool)
 
@@ -66,7 +91,7 @@ func ListProjectsExpanded() (Projects, map[string]bool, error) {
 			continue
 		}
 
-		if isGWTLeaf(p.Path) {
+		if IsGWTLeaf(p.Path) {
 			out[p.Name] = p
 			hitmap[p.Name] = true
 			continue
@@ -91,13 +116,7 @@ func ListProjectsExpanded() (Projects, map[string]bool, error) {
 			hitmap[subName] = true
 		}
 	}
-
 	return out, hitmap, nil
-}
-
-type ProjectEntry struct {
-	Project
-	IsGWT bool
 }
 
 func SortedProjectEntries() ([]ProjectEntry, error) {
@@ -134,8 +153,7 @@ func FindProjectEntry(name string) (ProjectEntry, error) {
 	return ProjectEntry{Project: project, IsGWT: hitmap[name]}, nil
 }
 
-func isGWTLeaf(path string) bool {
-
+func IsGWTLeaf(path string) bool {
 	st, err := os.Stat(filepath.Join(path, ".git"))
 	if err != nil {
 		return false
