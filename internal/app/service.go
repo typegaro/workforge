@@ -168,14 +168,22 @@ func (s *Service) RemoveWorktree(name string) (string, error) {
 	return leafPath, nil
 }
 
-func (s *Service) AddProject(name string, gwt bool) error {
+func (s *Service) AddProject(name string, gwt bool, path *string) error {
 	regPath, err := registry.EnsureRegistry()
 	if err != nil {
 		return err
 	}
-	absPath, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+	var absPath string
+	if path != nil {
+		absPath, err = filepath.Abs(*path)
+		if err != nil {
+			return fmt.Errorf("failed to resolve project path: %w", err)
+		}
+	} else {
+		absPath, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
 	}
 	log.Info("Adding project: %s (path: %s, gwt: %t)", name, absPath, gwt)
 	projects, err := registry.LoadProjects(regPath)
@@ -280,7 +288,7 @@ func (s *Service) initFromURL(url string, gwt bool) error {
 		}
 	}
 
-	return s.AddProject(repoName, gwt)
+	return s.AddProject(repoName, gwt, &path)
 }
 
 func (s *Service) initLocal(gwt bool) error {
@@ -293,7 +301,7 @@ func (s *Service) initLocal(gwt bool) error {
 	if err := config.WriteExampleConfig(nil); err != nil {
 		return err
 	}
-	return s.AddProject(repoName, gwt)
+	return s.AddProject(repoName, gwt, nil)
 }
 
 func enterProjectDir(projectPath string) error {

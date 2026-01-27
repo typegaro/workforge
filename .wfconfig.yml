@@ -1,11 +1,11 @@
+
 default:
   log_level: "DEBUG"
   hooks:
     on_load:
-      - "echo \"Welcome to workforge!\""
-      - "ls"
+      - "echo \"Welcome in your project!\""
   tmux:
-    attach: false
-    session_name: "workforge"
+    attach: false 
+    session_name: "wf"
     windows:
       - "nvim ."
