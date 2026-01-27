@@ -11,7 +11,6 @@ const DefaultProfile = "default"
 const ExampleConfigYAML = `
 default:
   log_level: "DEBUG"
-  foreground: "nvim ."
   hooks:
     on_load:
       - "echo \"Welcome in your project!\""
