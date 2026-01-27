@@ -1,5 +1,5 @@
 {
-  description = "Python dev shell with uv (NixOS-friendly)";
+  description = "Go dev shell";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
