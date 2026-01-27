@@ -236,9 +236,9 @@ func (s *Service) AddLeaf(absLeafPath string) error {
 }
 
 func (s *Service) initFromURL(url string, gwt bool) error {
-	var path string
 	var entries []os.DirEntry
 	repoName := util.RepoUrlToName(url)
+	path := repoName
 	entries, err := os.ReadDir("./")
 	if err != nil {
 		return fmt.Errorf("directory error: %w", err)

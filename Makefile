@@ -1,7 +1,7 @@
 BIN_DIR := bin
 BIN := $(BIN_DIR)/wf
 
-.PHONY: build clean fmt install test
+.PHONY: build clean fmt install test uninstall
 
 build:
 	mkdir -p $(BIN_DIR)
@@ -15,6 +15,9 @@ test:
 
 install:
 	GOBIN=$(abspath $(BIN_DIR)) go install ./cmd/wf
+
+uninstall:
+	rm -f $(BIN)
 
 clean:
 	rm -f $(BIN)
