@@ -24,9 +24,9 @@ default:
 
 func WriteExampleConfig(path *string) error {
 	if path == nil {
-		return os.WriteFile("./"+ConfigFileName, []byte(ExampleConfigYAML), 0o644)
+		return os.WriteFile(ConfigFileName, []byte(ExampleConfigYAML), 0o644)
 	}
-	return os.WriteFile(*path+"/"+ConfigFileName, []byte(ExampleConfigYAML), 0o644)
+	return os.WriteFile(filepath.Join(*path, ConfigFileName), []byte(ExampleConfigYAML), 0o644)
 }
 
 func ResolveConfigPath(projectPath string, isGWT bool) string {

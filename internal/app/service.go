@@ -8,6 +8,7 @@ import (
 
 	"workforge/internal/config"
 	"workforge/internal/infra/exec"
+	"workforge/internal/infra/fs"
 	"workforge/internal/infra/git"
 	"workforge/internal/infra/log"
 	"workforge/internal/infra/tmux"
@@ -39,10 +40,12 @@ func (e RemoveWorktreeError) Error() string {
 	return e.Err.Error()
 }
 
-type Service struct{}
+type Service struct {
+	paths *fs.PathResolver
+}
 
 func NewService() *Service {
-	return &Service{}
+	return &Service{paths: fs.NewPathResolver()}
 }
 
 func (s *Service) InitProject(url string, gwt bool) error {
@@ -175,14 +178,18 @@ func (s *Service) AddProject(name string, gwt bool, path *string) error {
 	}
 	var absPath string
 	if path != nil {
-		absPath, err = filepath.Abs(*path)
+		absPath, err = s.paths.NormalizePath(*path)
 		if err != nil {
 			return fmt.Errorf("failed to resolve project path: %w", err)
 		}
 	} else {
-		absPath, err = os.Getwd()
+		cwd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		absPath, err = s.paths.NormalizePath(cwd)
+		if err != nil {
+			return fmt.Errorf("failed to resolve project path: %w", err)
 		}
 	}
 	log.Info("Adding project: %s (path: %s, gwt: %t)", name, absPath, gwt)
@@ -271,7 +278,7 @@ func (s *Service) initFromURL(url string, gwt bool) error {
 	}
 
 	if gwt {
-		configFilePath := "./" + repoName + "/" + config.ConfigFileName
+		configFilePath := filepath.Join(repoName, config.ConfigFileName)
 		if _, err := os.Stat(configFilePath); err == nil {
 			log.Info("Copying Workforge config from the cloned repo")
 			if err := util.CopyFile(configFilePath, config.ConfigFileName); err != nil {

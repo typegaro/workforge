@@ -1,11 +1,18 @@
 package util
 
 import (
+	"net/url"
 	"os"
+	"path"
 	"strings"
 )
 
 func RepoUrlToName(url string) string {
+	parsed, err := url.Parse(url)
+	if err == nil {
+		base := path.Base(parsed.Path)
+		return strings.TrimSuffix(base, ".git")
+	}
 	parts := strings.Split(url, "/")
 	return strings.TrimSuffix(parts[len(parts)-1], ".git")
 }
