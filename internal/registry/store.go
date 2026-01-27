@@ -6,9 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"workforge/internal/infra/fs"
 )
 
-const WorkForgeConfigDir = ".config/workforge"
 const WorkForgeConfigFile = "workforge.json"
 
 type Projects map[string]Project
@@ -24,12 +25,16 @@ type ProjectEntry struct {
 	IsGWT bool
 }
 
-func RegistryPath() string {
-	return filepath.Join(os.Getenv("HOME"), WorkForgeConfigDir, WorkForgeConfigFile)
+func RegistryPath() (string, error) {
+	resolver := fs.NewPathResolver()
+	return resolver.RegistryPath()
 }
 
 func EnsureRegistry() (string, error) {
-	path := RegistryPath()
+	path, err := RegistryPath()
+	if err != nil {
+		return "", err
+	}
 	dir := filepath.Dir(path)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -65,7 +70,11 @@ func LoadProjects(filename string) (Projects, error) {
 }
 
 func ListProjects() (Projects, error) {
-	workforgePath := filepath.Join(os.Getenv("HOME"), WorkForgeConfigDir)
+	resolver := fs.NewPathResolver()
+	workforgePath, err := resolver.WorkforgeConfigDir()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := os.Stat(workforgePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("workforge config directory does not exist")
 	}

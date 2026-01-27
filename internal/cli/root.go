@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"workforge/internal/app"
 	"workforge/internal/infra/log"
@@ -43,9 +44,9 @@ func Execute() {
 		Short: "Load a Workforge project",
 		Args:  cobra.RangeArgs(0, 1),
 		Run: func(cmd *cobra.Command, args []string) {
-			path := "../"
+			path := ".."
 			if len(args) > 0 {
-				path = path + args[0]
+				path = filepath.Join(path, args[0])
 			}
 			if loadProfile != "" {
 				if err := service.LoadProject(path, false, &loadProfile); err != nil {
