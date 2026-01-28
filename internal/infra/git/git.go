@@ -57,11 +57,19 @@ func WorktreeLeafDirName(name string) string {
 }
 
 func GitCurrentBranch() (string, error) {
-	out, err := execinfra.RunOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
+	return GitCurrentBranchForPath("")
+}
+
+func GitCurrentBranchForPath(repoPath string) (string, error) {
+	args := []string{"rev-parse", "--abbrev-ref", "HEAD"}
+	if strings.TrimSpace(repoPath) != "" {
+		args = append([]string{"-C", repoPath}, args...)
+	}
+	out, err := execinfra.RunOutput("git", args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to get current branch: %w", err)
 	}
-	return out, nil
+	return strings.TrimSpace(out), nil
 }
 
 func worktreeFolderName(name string) string {
