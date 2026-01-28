@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -25,28 +26,26 @@ func GitClone(repoURL string, destination *string) error {
 	return nil
 }
 
-func AddNewWorkTree(name string, prefix string, baseBranch string) error {
-	folderName := worktreeFolderName(prefix + "-" + name)
-	branchName := worktreeBranchName(name, prefix)
-	if branchName == "" {
-		branchName = worktreeLeafName(name)
-	}
-
-	args := []string{"worktree", "add", folderName, "-b", branchName, baseBranch}
-	if err := execinfra.RunSyncCommand("git", args...); err != nil {
-		return fmt.Errorf("failed to add the new worktree: %s", err)
-	}
-	log.Success("New worktree added successfully")
-	return nil
-}
-
-func AddWorkTree(name string) error {
-	folderName := worktreeFolderName(name)
-	branchRef := strings.TrimSpace(strings.Trim(name, "/"))
+func AddWorkTree(worktreePath string, branch string, createBranch bool, baseBranch string) error {
+	folderName := worktreeFolderName(branch)
+	branchRef := strings.TrimSpace(strings.Trim(branch, "/"))
 	if branchRef == "" {
-		branchRef = name
+		branchRef = branch
 	}
-	if err := execinfra.RunSyncCommand("git", "worktree", "add", folderName, branchRef); err != nil {
+	args := []string{"worktree", "add", folderName, branchRef}
+	if createBranch {
+		exists, err := branchExists(worktreePath, branchRef)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			if strings.TrimSpace(baseBranch) == "" {
+				baseBranch = "main"
+			}
+			args = []string{"worktree", "add", folderName, "-b", branchRef, baseBranch}
+		}
+	}
+	if err := runGitCommand(worktreePath, args...); err != nil {
 		return fmt.Errorf("failed to add the new worktree: %s", err)
 	}
 	log.Success("New worktree added successfully")
@@ -69,24 +68,6 @@ func worktreeFolderName(name string) string {
 	return filepath.Join("..", worktreeLeafName(name))
 }
 
-func worktreeBranchName(name string, prefix string) string {
-	parts := make([]string, 0, 2)
-	cleanedPrefix := strings.Trim(prefix, "/")
-	cleanedName := strings.Trim(name, "/")
-
-	if cleanedPrefix != "" {
-		parts = append(parts, cleanedPrefix)
-	}
-	if cleanedName != "" {
-		parts = append(parts, cleanedName)
-	}
-
-	if len(parts) == 0 {
-		return ""
-	}
-	return strings.Join(parts, "/")
-}
-
 func worktreeLeafName(name string) string {
 	cleaned := strings.TrimSpace(strings.Trim(name, "/"))
 	if cleaned == "" {
@@ -98,4 +79,32 @@ func worktreeLeafName(name string) string {
 		sanitized = "worktree"
 	}
 	return sanitized
+}
+
+func runGitCommand(worktreePath string, args ...string) error {
+	if strings.TrimSpace(worktreePath) == "" {
+		return execinfra.RunSyncCommand("git", args...)
+	}
+	cmdArgs := append([]string{"-C", worktreePath}, args...)
+	return execinfra.RunSyncCommand("git", cmdArgs...)
+}
+
+func branchExists(worktreePath string, branch string) (bool, error) {
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return false, fmt.Errorf("branch name cannot be empty")
+	}
+	args := []string{"show-ref", "--verify", "--quiet", fmt.Sprintf("refs/heads/%s", branch)}
+	if strings.TrimSpace(worktreePath) != "" {
+		args = append([]string{"-C", worktreePath}, args...)
+	}
+	_, err := execinfra.RunOutput("git", args...)
+	if err == nil {
+		return true, nil
+	}
+	var exitErr interface{ ExitCode() int }
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, fmt.Errorf("failed to check branch %q: %w", branch, err)
 }
