@@ -243,7 +243,11 @@ func (s *Service) AddLeaf(absLeafPath string) error {
 func (s *Service) initFromURL(url string, gwt bool) error {
 	var entries []os.DirEntry
 	repoName := util.RepoUrlToName(url)
-	path := repoName
+	clonePath := repoName
+	projectPath := repoName
+	if gwt {
+		projectPath = "."
+	}
 	entries, err := os.ReadDir("./")
 	if err != nil {
 		return fmt.Errorf("directory error: %w", err)
@@ -263,29 +267,29 @@ func (s *Service) initFromURL(url string, gwt bool) error {
 		}
 	}
 
-	if err := git.GitClone(url, &path); err != nil {
+	if err := git.GitClone(url, &clonePath); err != nil {
 		return err
 	}
 
 	if gwt {
-		configFilePath := filepath.Join(repoName, config.ConfigFileName)
+		configFilePath := filepath.Join(clonePath, config.ConfigFileName)
 		if _, err := os.Stat(configFilePath); err == nil {
 			log.Info("Copying Workforge config from the cloned repo")
 			if err := util.CopyFile(configFilePath, config.ConfigFileName); err != nil {
 				return err
 			}
 		} else {
-			if err := config.WriteExampleConfig(&path); err != nil {
+			if err := config.WriteExampleConfig(nil); err != nil {
 				return err
 			}
 		}
 	} else {
-		if err := config.WriteExampleConfig(&path); err != nil {
+		if err := config.WriteExampleConfig(&clonePath); err != nil {
 			return err
 		}
 	}
 
-	return s.AddProject(repoName, gwt, &path)
+	return s.AddProject(repoName, gwt, &projectPath)
 }
 
 func (s *Service) initLocal(gwt bool) error {
