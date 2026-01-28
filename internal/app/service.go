@@ -171,8 +171,8 @@ func (s *Service) AddNewWorkTree(name string, prefix string, base string) error 
 	return nil
 }
 
-func (s *Service) AddWorkTree(name string) error {
-	return git.AddWorkTree(name)
+func (s *Service) AddWorkTree(worktreePath string, branch string, createBranch bool, baseBranch string) error {
+	return git.AddWorkTree(worktreePath, branch, createBranch, baseBranch)
 }
 
 func (s *Service) RemoveWorktree(name string) (string, error) {

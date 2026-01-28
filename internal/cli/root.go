@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"workforge/internal/app"
@@ -18,8 +17,8 @@ func Execute() {
 		Use:   "wf",
 		Short: "Workforge - Forge your work",
 	}
-	var addNewBranch bool
-	var addPrefix string
+	var addCreateBranch bool
+	var addBaseBranch string
 	var gwtFlag bool
 	var initCmd = &cobra.Command{
 		Use:   "init <url> <path>",
@@ -148,37 +147,25 @@ func Execute() {
 	rootCmd.AddCommand(initCmd, loadCmd, listCmd, tagCmd, openCmd)
 
 	var addCmd = &cobra.Command{
-		Use:   "add <name> [base-branch]",
-		Short: "Add a worktree or create a new branch",
+		Use:   "add [worktree] <branch>",
+		Short: "Add a worktree (optionally create the branch if missing)",
 		Args:  cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			name := args[0]
-			if addNewBranch {
-				base := "main"
-				if addPrefix == "" {
-					addPrefix = "feature"
-				}
-				if len(args) > 1 {
-					base = args[1]
-				}
-				if err := service.AddNewWorkTree(name, addPrefix, base); err != nil {
-					log.Error("error creating new worktree: %v", err)
-					return
-				}
-				if _, err := os.Getwd(); err != nil {
-					log.Error("error getting current directory: %v", err)
-					return
-				}
+			worktreePath := "."
+			branch := args[0]
+			if len(args) > 1 {
+				worktreePath = args[0]
+				branch = args[1]
 			}
-			if err := service.AddWorkTree(name); err != nil {
+			if err := service.AddWorkTree(worktreePath, branch, addCreateBranch, addBaseBranch); err != nil {
 				log.Error("error adding worktree: %v", err)
 				return
 			}
 		},
 	}
 
-	addCmd.Flags().BoolVarP(&addNewBranch, "b", "b", false, "Create a new branch and worktree (optional base-branch, default: main)")
-	addCmd.Flags().StringVar(&addPrefix, "prefix", "feature", "Branch prefix (default: feature)")
+	addCmd.Flags().BoolVarP(&addCreateBranch, "create-branch", "c", false, "Create the branch if it does not exist")
+	addCmd.Flags().StringVar(&addBaseBranch, "base", "main", "Base branch for new branch creation")
 	rootCmd.AddCommand(addCmd)
 
 	var rmCmd = &cobra.Command{
