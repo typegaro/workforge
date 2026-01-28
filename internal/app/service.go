@@ -131,18 +131,8 @@ func (s *Service) FindProjectEntry(name string) (registry.ProjectEntry, error) {
 	return registry.FindProjectEntry(name)
 }
 
-func (s *Service) AddNewWorkTree(name string, prefix string, base string) error {
-	if err := git.AddNewWorkTree(name, prefix, base); err != nil {
-		return err
-	}
-	if _, err := os.Getwd(); err != nil {
-		return fmt.Errorf("error getting current directory: %w", err)
-	}
-	return nil
-}
-
-func (s *Service) AddWorkTree(name string) error {
-	return git.AddWorkTree(name)
+func (s *Service) AddWorkTree(worktreePath string, branch string, createBranch bool, baseBranch string) error {
+	return git.AddWorkTree(worktreePath, branch, createBranch, baseBranch)
 }
 
 func (s *Service) RemoveWorktree(name string) (string, error) {

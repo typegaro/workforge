@@ -66,10 +66,11 @@ Note: you choose the binary name via `-o wf`. The root command is `wf`.
     - `-p, --profile` - select a profile defined in `.wfconfig.yml`.
   - If no profile is specified and the config has exactly one profile, that profile is used automatically.
 
-- `wf add <name> [base-branch]`
-  - Create a new worktree from an existing branch, or create a new branch + worktree.
+- `wf add [worktree] <branch>`
+  - Add a worktree from an existing branch, or create the branch when missing.
   - Flags:
-    - `-b` - create a new branch (prefixed by `--prefix`, default `feature`), optional base branch (default `main`).
+    - `-c, --create-branch` - create the branch if it doesn't exist (uses `--base`, default `main`).
+    - `--base` - base branch to use when creating a new branch.
 
 - `wf rm <name>`
   - Remove a worktree and run any `on_delete` hooks first.
