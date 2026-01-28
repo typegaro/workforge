@@ -272,6 +272,23 @@ func (s *Service) initFromURL(url string, gwt bool) error {
 	}
 
 	if gwt {
+		branchName, err := git.GitCurrentBranchForPath(clonePath)
+		if err != nil {
+			return err
+		}
+		branchDir := git.WorktreeLeafDirName(branchName)
+		if branchDir != "" && branchDir != clonePath {
+			if _, err := os.Stat(branchDir); err == nil {
+				return fmt.Errorf("destination %q already exists", branchDir)
+			} else if !os.IsNotExist(err) {
+				return fmt.Errorf("failed to check destination %q: %w", branchDir, err)
+			}
+			log.Info("Renaming cloned repo to %s", branchDir)
+			if err := os.Rename(clonePath, branchDir); err != nil {
+				return fmt.Errorf("failed to rename cloned repo: %w", err)
+			}
+			clonePath = branchDir
+		}
 		configFilePath := filepath.Join(clonePath, config.ConfigFileName)
 		if _, err := os.Stat(configFilePath); err == nil {
 			log.Info("Copying Workforge config from the cloned repo")
