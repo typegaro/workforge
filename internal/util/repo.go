@@ -7,13 +7,13 @@ import (
 	"strings"
 )
 
-func RepoUrlToName(url string) string {
-	parsed, err := url.Parse(url)
+func RepoUrlToName(repoURL string) string {
+	parsed, err := url.Parse(repoURL)
 	if err == nil {
 		base := path.Base(parsed.Path)
 		return strings.TrimSuffix(base, ".git")
 	}
-	parts := strings.Split(url, "/")
+	parts := strings.Split(repoURL, "/")
 	return strings.TrimSuffix(parts[len(parts)-1], ".git")
 }
 
