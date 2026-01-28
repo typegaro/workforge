@@ -60,13 +60,24 @@ func Execute() {
 		},
 	}
 	loadCmd.Flags().StringVarP(&loadProfile, "profile", "p", "", "Profile name to use")
+	var listGWT bool
+	var listProjects bool
+	var listTags []string
 	var listCmd = &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List Workforge projects",
-		Args:    cobra.NoArgs,
+		Args:    cobra.Arbitrary,
 		Run: func(cmd *cobra.Command, args []string) {
-			entries, err := service.SortedProjectEntries()
+			tags := append([]string{}, listTags...)
+			if len(args) > 0 {
+				tags = append(tags, args...)
+			}
+			entries, err := service.ListProjectEntries(app.ListOptions{
+				OnlyGWT:      listGWT,
+				OnlyProjects: listProjects,
+				Tags:         tags,
+			})
 			if err != nil {
 				log.Error("error loading projects: %v", err)
 				return
@@ -76,6 +87,40 @@ func Execute() {
 			}
 		},
 	}
+	listCmd.Flags().BoolVar(&listGWT, "gwt", false, "List only Git worktrees")
+	listCmd.Flags().BoolVar(&listProjects, "projects", false, "List only normal projects")
+	listCmd.Flags().StringArrayVarP(&listTags, "tags", "t", nil, "Filter projects by tag")
+
+	var tagCmd = &cobra.Command{
+		Use:   "tag",
+		Short: "Manage project tags",
+	}
+	var tagAddCmd = &cobra.Command{
+		Use:   "add <project> <tag> [tag...]",
+		Short: "Add tags to a project",
+		Args:  cobra.MinimumNArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := args[0]
+			tags := args[1:]
+			if err := service.AddProjectTags(name, tags); err != nil {
+				log.Error("error adding tags: %v", err)
+			}
+		},
+	}
+	var tagRemoveCmd = &cobra.Command{
+		Use:     "remove <project> <tag> [tag...]",
+		Aliases: []string{"rm"},
+		Short:   "Remove tags from a project",
+		Args:    cobra.MinimumNArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := args[0]
+			tags := args[1:]
+			if err := service.RemoveProjectTags(name, tags); err != nil {
+				log.Error("error removing tags: %v", err)
+			}
+		},
+	}
+	tagCmd.AddCommand(tagAddCmd, tagRemoveCmd)
 
 	var openProfile string
 	var openCmd = &cobra.Command{
@@ -100,7 +145,7 @@ func Execute() {
 	}
 	openCmd.Flags().StringVarP(&openProfile, "profile", "p", "", "Profile name to use")
 
-	rootCmd.AddCommand(initCmd, loadCmd, listCmd, openCmd)
+	rootCmd.AddCommand(initCmd, loadCmd, listCmd, tagCmd, openCmd)
 
 	var addCmd = &cobra.Command{
 		Use:   "add <name> [base-branch]",

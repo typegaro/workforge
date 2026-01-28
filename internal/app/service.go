@@ -48,6 +48,12 @@ func NewService() *Service {
 	return &Service{paths: fs.NewPathResolver()}
 }
 
+type ListOptions struct {
+	OnlyGWT      bool
+	OnlyProjects bool
+	Tags         []string
+}
+
 func (s *Service) InitProject(url string, gwt bool) error {
 	if url == "" {
 		return s.initLocal(gwt)
@@ -127,8 +133,32 @@ func (s *Service) SortedProjectEntries() ([]registry.ProjectEntry, error) {
 	return registry.SortedProjectEntries()
 }
 
+func (s *Service) ListProjectEntries(opts ListOptions) ([]registry.ProjectEntry, error) {
+	entries, err := registry.SortedProjectEntries()
+	if err != nil {
+		return nil, err
+	}
+	entries, err = registry.FilterProjectEntries(entries, registry.FilterOptions{
+		OnlyGWT:      opts.OnlyGWT,
+		OnlyProjects: opts.OnlyProjects,
+		Tags:         opts.Tags,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
 func (s *Service) FindProjectEntry(name string) (registry.ProjectEntry, error) {
 	return registry.FindProjectEntry(name)
+}
+
+func (s *Service) AddProjectTags(name string, tags []string) error {
+	return registry.AddProjectTags(name, tags)
+}
+
+func (s *Service) RemoveProjectTags(name string, tags []string) error {
+	return registry.RemoveProjectTags(name, tags)
 }
 
 func (s *Service) AddNewWorkTree(name string, prefix string, base string) error {

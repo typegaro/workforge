@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"workforge/internal/infra/fs"
 )
@@ -15,14 +16,21 @@ const WorkForgeConfigFile = "workforge.json"
 type Projects map[string]Project
 
 type Project struct {
-	Name        string `json:"name"`
-	Path        string `json:"path"`
-	GitWorkTree bool   `json:"git_work_tree"`
+	Name        string   `json:"name"`
+	Path        string   `json:"path"`
+	GitWorkTree bool     `json:"git_work_tree"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 type ProjectEntry struct {
 	Project
 	IsGWT bool
+}
+
+type FilterOptions struct {
+	OnlyGWT      bool
+	OnlyProjects bool
+	Tags         []string
 }
 
 func RegistryPath() (string, error) {
@@ -160,6 +168,114 @@ func FindProjectEntry(name string) (ProjectEntry, error) {
 		project.Name = name
 	}
 	return ProjectEntry{Project: project, IsGWT: hitmap[name]}, nil
+}
+
+func FilterProjectEntries(entries []ProjectEntry, opts FilterOptions) ([]ProjectEntry, error) {
+	if opts.OnlyGWT && opts.OnlyProjects {
+		return nil, fmt.Errorf("cannot combine --gwt with --projects")
+	}
+	filtered := make([]ProjectEntry, 0, len(entries))
+	requiredTags := normalizeTags(opts.Tags)
+	for _, entry := range entries {
+		if opts.OnlyGWT && !entry.IsGWT {
+			continue
+		}
+		if opts.OnlyProjects && entry.IsGWT {
+			continue
+		}
+		if len(requiredTags) > 0 {
+			entryTags := normalizeTags(entry.Tags)
+			if !matchesTags(entryTags, requiredTags) {
+				continue
+			}
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered, nil
+}
+
+func AddProjectTags(name string, tags []string) error {
+	return updateProjectTags(name, tags, nil)
+}
+
+func RemoveProjectTags(name string, tags []string) error {
+	return updateProjectTags(name, nil, tags)
+}
+
+func updateProjectTags(name string, addTags []string, removeTags []string) error {
+	if name == "" {
+		return fmt.Errorf("project name cannot be empty")
+	}
+	regPath, err := EnsureRegistry()
+	if err != nil {
+		return err
+	}
+	projects, err := LoadProjects(regPath)
+	if err != nil {
+		return err
+	}
+	project, ok := projects[name]
+	if !ok {
+		return fmt.Errorf("project %q not found", name)
+	}
+	current := normalizeTags(project.Tags)
+	added := normalizeTags(addTags)
+	removed := normalizeTags(removeTags)
+
+	updated := applyTagUpdates(current, added, removed)
+	project.Tags = updated
+	projects[name] = project
+	return SaveProjects(regPath, projects)
+}
+
+func applyTagUpdates(current []string, addTags []string, removeTags []string) []string {
+	tagSet := make(map[string]struct{}, len(current))
+	for _, tag := range current {
+		tagSet[tag] = struct{}{}
+	}
+	for _, tag := range addTags {
+		tagSet[tag] = struct{}{}
+	}
+	for _, tag := range removeTags {
+		delete(tagSet, tag)
+	}
+	if len(tagSet) == 0 {
+		return nil
+	}
+	updated := make([]string, 0, len(tagSet))
+	for tag := range tagSet {
+		updated = append(updated, tag)
+	}
+	sort.Strings(updated)
+	return updated
+}
+
+func normalizeTags(tags []string) []string {
+	out := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		tag = strings.TrimSpace(strings.ToLower(tag))
+		if tag == "" {
+			continue
+		}
+		out = append(out, tag)
+	}
+	return out
+}
+
+func matchesTags(entryTags []string, required []string) bool {
+	if len(required) == 0 {
+		return true
+	}
+	tagSet := make(map[string]struct{}, len(entryTags))
+	for _, tag := range entryTags {
+		tagSet[tag] = struct{}{}
+	}
+	for _, tag := range required {
+		if _, ok := tagSet[tag]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func IsGWTLeaf(path string) bool {
