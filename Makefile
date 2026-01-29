@@ -1,5 +1,7 @@
 BIN_DIR := bin
 BIN := $(BIN_DIR)/wf
+PREFIX ?= /usr/local
+BINDIR ?= $(PREFIX)/bin
 
 .PHONY: build clean fmt install test uninstall
 
@@ -13,11 +15,12 @@ fmt:
 test:
 	go test ./...
 
-install:
-	GOBIN=$(abspath $(BIN_DIR)) go install ./cmd/wf
+install: build
+	mkdir -p $(BINDIR)
+	install -m 755 $(BIN) $(BINDIR)/wf
 
 uninstall:
-	rm -f $(BIN)
+	rm -f $(BINDIR)/wf $(BIN)
 
 clean:
 	rm -f $(BIN)

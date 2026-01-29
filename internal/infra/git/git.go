@@ -111,8 +111,10 @@ func branchExists(worktreePath string, branch string) (bool, error) {
 		return true, nil
 	}
 	var exitErr interface{ ExitCode() int }
-	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
-		return false, nil
+	if errors.As(err, &exitErr) {
+		if exitErr.ExitCode() == 1 {
+			return false, nil
+		}
 	}
 	return false, fmt.Errorf("failed to check branch %q: %w", branch, err)
 }
