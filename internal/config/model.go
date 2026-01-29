@@ -47,3 +47,17 @@ func LoadFile(path string) (Config, error) {
 	defer f.Close()
 	return Parse(f)
 }
+
+func WriteFile(path string, cfg Config) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := yaml.NewEncoder(f)
+	enc.SetIndent(2)
+	if err := enc.Encode(cfg); err != nil {
+		return err
+	}
+	return enc.Close()
+}

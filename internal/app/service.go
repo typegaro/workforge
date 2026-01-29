@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"workforge/internal/config"
 	"workforge/internal/infra/exec"
-	"workforge/internal/infra/fs"
-	"workforge/internal/infra/git"
 	"workforge/internal/infra/log"
 	"workforge/internal/infra/tmux"
 	"workforge/internal/registry"
@@ -41,11 +38,20 @@ func (e RemoveWorktreeError) Error() string {
 }
 
 type Service struct {
-	paths *fs.PathResolver
+	projects *ProjectService
+	config   *ConfigService
+	git      *GitService
 }
 
 func NewService() *Service {
-	return &Service{paths: fs.NewPathResolver()}
+	projects := NewProjectService()
+	configService := NewConfigService()
+	gitService := NewGitService(projects)
+	return &Service{
+		projects: projects,
+		config:   configService,
+		git:      gitService,
+	}
 }
 
 func (s *Service) InitProject(url string, gwt bool) error {
@@ -56,25 +62,22 @@ func (s *Service) InitProject(url string, gwt bool) error {
 }
 
 func (s *Service) LoadProject(path string, gwt bool, profile *string) error {
-	if err := enterProjectDir(path); err != nil {
+	if err := s.projects.EnterProjectDir(path); err != nil {
 		return err
 	}
-	cfg, err := config.LoadConfig(path, gwt)
+	cfg, err := s.config.LoadConfig(path, gwt)
 	if err != nil {
 		return fmt.Errorf("error loading config: %w", err)
 	}
-	currentProfile, err := config.SelectProfile(cfg, profile)
+	currentProfile, err := s.config.SelectProfile(cfg, profile)
 	if err != nil {
 		return err
 	}
 	log.SetLogLevelFromString(cfg[currentProfile].LogLevel)
 	onLoad := cfg[currentProfile].Hooks.OnLoad
 	log.Debug("using profile: %s", currentProfile)
-	for i, cmd := range onLoad {
-		log.Debug("running on_load hook #%d: %s", i+1, cmd)
-		if err := exec.RunSyncUserShell(cmd); err != nil {
-			return fmt.Errorf("hook %d failed: %w", i+1, err)
-		}
+	if err := s.config.RunHooks("on_load", onLoad, log.Debug); err != nil {
+		return err
 	}
 
 	if cfg[currentProfile].Tmux == nil {
@@ -92,7 +95,7 @@ func (s *Service) LoadProject(path string, gwt bool, profile *string) error {
 		}
 	}
 	sessionName := sessionBase
-	if br, err := git.GitCurrentBranch(); err == nil && br != "" {
+	if br, err := s.git.CurrentBranch(); err == nil && br != "" {
 		sessionName = fmt.Sprintf("%s/%s", sessionBase, br)
 	}
 	if err := tmux.NewSession(path, sessionName, tmuxCfg.Attach, tmuxCfg.Windows); err != nil {
@@ -102,54 +105,40 @@ func (s *Service) LoadProject(path string, gwt bool, profile *string) error {
 }
 
 func (s *Service) RunOnDelete(projectPath string, isGWT bool, profile *string) error {
-	if err := enterProjectDir(projectPath); err != nil {
+	if err := s.projects.EnterProjectDir(projectPath); err != nil {
 		return err
 	}
-	cfg, err := config.LoadConfig(projectPath, isGWT)
+	cfg, err := s.config.LoadConfig(projectPath, isGWT)
 	if err != nil {
 		return fmt.Errorf("error loading config: %w", err)
 	}
-	currentProfile, err := config.SelectProfile(cfg, profile)
+	currentProfile, err := s.config.SelectProfile(cfg, profile)
 	if err != nil {
 		return err
 	}
 	onDelete := cfg[currentProfile].Hooks.OnDelete
-	for i, cmd := range onDelete {
-		log.Info("running on_delete hook #%d: %s", i+1, cmd)
-		if err := exec.RunSyncUserShell(cmd); err != nil {
-			return fmt.Errorf("on_delete hook %d failed: %w", i+1, err)
-		}
+	if err := s.config.RunHooks("on_delete", onDelete, log.Info); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (s *Service) SortedProjectEntries() ([]registry.ProjectEntry, error) {
-	return registry.SortedProjectEntries()
+	return s.projects.SortedProjectEntries()
 }
 
 func (s *Service) FindProjectEntry(name string) (registry.ProjectEntry, error) {
-	return registry.FindProjectEntry(name)
+	return s.projects.FindProjectEntry(name)
 }
 
 func (s *Service) AddWorkTree(worktreePath string, branch string, createBranch bool, baseBranch string) error {
-	return git.AddWorkTree(worktreePath, branch, createBranch, baseBranch)
+	return s.git.AddWorktree(worktreePath, branch, createBranch, baseBranch)
 }
 
 func (s *Service) RemoveWorktree(name string) (string, error) {
-	cwd, err := os.Getwd()
+	leafPath, err := s.projects.ResolveWorktreeLeaf(name)
 	if err != nil {
-		return "", fmt.Errorf("error getting current directory: %w", err)
-	}
-	cand1 := filepath.Join(cwd, "..", name)
-	cand2 := filepath.Join(cwd, "..", strings.ReplaceAll(name, "/", "-"))
-
-	leafPath := ""
-	if st, err := os.Stat(cand1); err == nil && st.IsDir() {
-		leafPath = cand1
-	} else if st, err := os.Stat(cand2); err == nil && st.IsDir() {
-		leafPath = cand2
-	} else {
-		return "", WorktreeNotFoundError{Name: name}
+		return "", err
 	}
 
 	if err := s.RunOnDelete(leafPath, true, nil); err != nil {
@@ -162,82 +151,11 @@ func (s *Service) RemoveWorktree(name string) (string, error) {
 }
 
 func (s *Service) AddProject(name string, gwt bool, path *string) error {
-	regPath, err := registry.EnsureRegistry()
-	if err != nil {
-		return err
-	}
-	var absPath string
-	if path != nil {
-		absPath, err = s.paths.NormalizePath(*path)
-		if err != nil {
-			return fmt.Errorf("failed to resolve project path: %w", err)
-		}
-	} else {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
-		}
-		absPath, err = s.paths.NormalizePath(cwd)
-		if err != nil {
-			return fmt.Errorf("failed to resolve project path: %w", err)
-		}
-	}
-	log.Info("Adding project: %s (path: %s, gwt: %t)", name, absPath, gwt)
-	projects, err := registry.LoadProjects(regPath)
-	log.Debug("Workforge config: %s", regPath)
-	if err != nil {
-		projects = make(registry.Projects)
-	}
-	log.Debug("Loaded existing projects: %+v", projects)
-	projects[name] = registry.Project{Name: name, Path: absPath, GitWorkTree: gwt}
-	if err := registry.SaveProjects(regPath, projects); err != nil {
-		return err
-	}
-	return nil
+	return s.projects.AddProject(name, gwt, path)
 }
 
 func (s *Service) AddLeaf(absLeafPath string) error {
-	regPath, err := registry.EnsureRegistry()
-	if err != nil {
-		return err
-	}
-	projects, err := registry.LoadProjects(regPath)
-	if err != nil {
-		projects = make(registry.Projects)
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	var baseName string
-	for name, p := range projects {
-		if p.GitWorkTree && !registry.IsGWTLeaf(p.Path) && p.Path == cwd {
-			baseName = name
-			break
-		}
-	}
-
-	if baseName == "" {
-		parent := filepath.Dir(absLeafPath)
-		for name, p := range projects {
-			if p.GitWorkTree && !registry.IsGWTLeaf(p.Path) && p.Path == parent {
-				baseName = name
-				break
-			}
-		}
-	}
-
-	leafName := filepath.Base(absLeafPath)
-	key := leafName
-	if baseName != "" {
-		key = baseName + "/" + leafName
-	}
-	projects[key] = registry.Project{Name: key, Path: absLeafPath, GitWorkTree: true}
-	if err := registry.SaveProjects(regPath, projects); err != nil {
-		return err
-	}
-	return nil
+	return s.projects.AddLeaf(absLeafPath)
 }
 
 func (s *Service) initFromURL(url string, gwt bool) error {
@@ -267,16 +185,16 @@ func (s *Service) initFromURL(url string, gwt bool) error {
 		}
 	}
 
-	if err := git.GitClone(url, &clonePath); err != nil {
+	if err := s.git.Clone(url, &clonePath); err != nil {
 		return err
 	}
 
 	if gwt {
-		branchName, err := git.GitCurrentBranchForPath(clonePath)
+		branchName, err := s.git.CurrentBranchForPath(clonePath)
 		if err != nil {
 			return err
 		}
-		branchDir := git.WorktreeLeafDirName(branchName)
+		branchDir := s.git.WorktreeLeafDirName(branchName)
 		if branchDir != "" && branchDir != clonePath {
 			if _, err := os.Stat(branchDir); err == nil {
 				return fmt.Errorf("destination %q already exists", branchDir)
@@ -296,17 +214,17 @@ func (s *Service) initFromURL(url string, gwt bool) error {
 				return err
 			}
 		} else {
-			if err := config.WriteExampleConfig(nil); err != nil {
+			if err := s.config.WriteExampleConfig(nil); err != nil {
 				return err
 			}
 		}
 	} else {
-		if err := config.WriteExampleConfig(&clonePath); err != nil {
+		if err := s.config.WriteExampleConfig(&clonePath); err != nil {
 			return err
 		}
 	}
 
-	return s.AddProject(repoName, gwt, &projectPath)
+	return s.projects.AddProject(repoName, gwt, &projectPath)
 }
 
 func (s *Service) initLocal(gwt bool) error {
@@ -316,15 +234,8 @@ func (s *Service) initLocal(gwt bool) error {
 		return fmt.Errorf("error getting current directory: %w", err)
 	}
 	repoName := filepath.Base(cwd)
-	if err := config.WriteExampleConfig(nil); err != nil {
+	if err := s.config.WriteExampleConfig(nil); err != nil {
 		return err
 	}
-	return s.AddProject(repoName, gwt, nil)
-}
-
-func enterProjectDir(projectPath string) error {
-	if err := os.Chdir(projectPath); err != nil {
-		return fmt.Errorf("chdir to %q failed: %w", projectPath, err)
-	}
-	return nil
+	return s.projects.AddProject(repoName, gwt, nil)
 }
