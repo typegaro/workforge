@@ -109,7 +109,12 @@ func Execute() {
 			worktreePath := "."
 			branch := args[0]
 			if len(args) > 1 {
-				worktreePath = args[0]
+				entry, err := service.FindProjectEntry(args[0])
+				if err == nil {
+					worktreePath = entry.Path
+				} else {
+					worktreePath = args[0]
+				}
 				branch = args[1]
 			}
 			if err := service.AddWorkTree(worktreePath, branch, addCreateBranch, addBaseBranch); err != nil {
