@@ -61,6 +61,14 @@ func (s *HookService) RunOnDebug(payload DebugPayload) []HookResult {
 	return s.runPluginHooksWithPayload(HookOnDebug, payload)
 }
 
+func (s *HookService) RunOnTmuxSessionStart(payload TmuxSessionPayload) []HookResult {
+	return s.runPluginHooksWithPayload(HookOnTmuxSessionStart, payload)
+}
+
+func (s *HookService) RunOnTmuxWindow(payload TmuxWindowPayload) []HookResult {
+	return s.runPluginHooksWithPayload(HookOnTmuxWindow, payload)
+}
+
 func (s *HookService) runHook(hookType HookType, ctx HookContext) ([]HookResult, error) {
 	if err := s.runShellHooks(hookType, ctx.ShellCommands); err != nil {
 		return nil, err

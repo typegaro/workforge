@@ -139,12 +139,71 @@ func (o *Orchestrator) LoadProject(path string, gwt bool, profile *string, proje
 	if _, err := o.hooks.RunOnShellRunIn(shellRunInCtx); err != nil {
 		return err
 	}
-	if err := tmux.NewSession(path, sessionName, tmuxCfg.Attach, tmuxCfg.Windows); err != nil {
+
+	onWindowCreated := func(session string, windowIndex int, command string) {
+		o.hooks.RunOnTmuxWindow(hook.TmuxWindowPayload{
+			Session: session,
+			Window:  windowIndex,
+			Command: command,
+			Project: resolvedProjectName,
+		})
+	}
+
+	if err := tmux.NewSession(path, sessionName, tmuxCfg.Attach, tmuxCfg.Windows, onWindowCreated); err != nil {
 		return fmt.Errorf("failed to start tmux session: %w", err)
 	}
+
+	o.hooks.RunOnTmuxSessionStart(hook.TmuxSessionPayload{
+		Session: sessionName,
+		Project: resolvedProjectName,
+	})
+
 	if _, err := o.hooks.RunOnShellRunOut(shellRunOutCtx); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (o *Orchestrator) CloseProject(name string, profile *string) error {
+	entry, err := o.projects.FindProjectEntry(name)
+	if err != nil {
+		return err
+	}
+
+	sessionName := name
+	if !tmux.HasSession(sessionName) {
+		return fmt.Errorf("no tmux session found for %q", name)
+	}
+
+	cfg, err := o.config.LoadConfig(entry.Path, entry.IsGWT)
+	if err != nil {
+		o.log.Warn("close", "could not load config: %v", err)
+	}
+
+	var hookCtx hook.HookContext
+	if cfg != nil {
+		currentProfile, err := o.config.SelectProfile(cfg, profile)
+		if err == nil {
+			hookCtx = hook.HookContext{
+				ShellCommands: cfg[currentProfile].Hooks.OnClose,
+				PluginConfigs: cfg[currentProfile].Extras,
+				ProjectName:   entry.Name,
+			}
+		}
+	}
+	if hookCtx.ProjectName == "" {
+		hookCtx.ProjectName = entry.Name
+	}
+
+	if _, err := o.hooks.RunOnClose(hookCtx); err != nil {
+		o.log.Warn("close", "on_close hook failed: %v", err)
+	}
+
+	if err := tmux.KillSession(sessionName); err != nil {
+		return fmt.Errorf("failed to kill tmux session: %w", err)
+	}
+
+	o.log.Success("close", "closed project %s", name)
 	return nil
 }
 

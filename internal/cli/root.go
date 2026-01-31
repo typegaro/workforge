@@ -100,7 +100,25 @@ func Execute() {
 	}
 	openCmd.Flags().StringVarP(&openProfile, "profile", "p", "", "Profile name to use")
 
-	rootCmd.AddCommand(initCmd, loadCmd, listCmd, openCmd)
+	var closeProfile string
+	var closeCmd = &cobra.Command{
+		Use:   "close <project-name>",
+		Short: "Close a project (kills tmux session and runs on_close hooks)",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := args[0]
+			var profile *string
+			if closeProfile != "" {
+				profile = &closeProfile
+			}
+			if err := orchestrator.CloseProject(name, profile); err != nil {
+				logSvc.Error("close", err)
+			}
+		},
+	}
+	closeCmd.Flags().StringVarP(&closeProfile, "profile", "p", "", "Profile name to use")
+
+	rootCmd.AddCommand(initCmd, loadCmd, listCmd, openCmd, closeCmd)
 
 	var addCmd = &cobra.Command{
 		Use:   "add [worktree] <branch>",

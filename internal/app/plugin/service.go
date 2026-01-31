@@ -65,11 +65,22 @@ func (s *PluginService) Wakeup(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	socketPath := filepath.Join(s.socketsDir, name+".sock")
+
 	if info, exists := s.plugins[name]; exists {
 		if s.isAlive(info) {
 			return nil
 		}
 		delete(s.plugins, name)
+	}
+
+	if s.isSocketAlive(socketPath) {
+		s.plugins[name] = &PluginInfo{
+			Name:       name,
+			SocketPath: socketPath,
+			Process:    nil,
+		}
+		return nil
 	}
 
 	pluginDir := filepath.Join(s.pluginsDir, name)
@@ -86,8 +97,6 @@ func (s *PluginService) Wakeup(name string) error {
 	if err := os.MkdirAll(s.socketsDir, 0o755); err != nil {
 		return fmt.Errorf("create sockets dir: %w", err)
 	}
-
-	socketPath := filepath.Join(s.socketsDir, name+".sock")
 
 	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("cleanup old socket: %w", err)
@@ -300,7 +309,11 @@ func hasHook(hooks []string, target string) bool {
 }
 
 func (s *PluginService) isAlive(info *PluginInfo) bool {
-	conn, err := net.DialTimeout("unix", info.SocketPath, 100*time.Millisecond)
+	return s.isSocketAlive(info.SocketPath)
+}
+
+func (s *PluginService) isSocketAlive(socketPath string) bool {
+	conn, err := net.DialTimeout("unix", socketPath, 100*time.Millisecond)
 	if err != nil {
 		return false
 	}

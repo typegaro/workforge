@@ -3,17 +3,19 @@ package hook
 type HookType string
 
 const (
-	HookOnLoad         HookType = "on_load"
-	HookOnClose        HookType = "on_close"
-	HookOnCreate       HookType = "on_create"
-	HookOnDelete       HookType = "on_delete"
-	HookOnShellRunIn   HookType = "on_shell_run_in"
-	HookOnShellRunOut  HookType = "on_shell_run_out"
-	HookOnPluginWakeup HookType = "on_plugin_wakeup"
-	HookOnError        HookType = "on_error"
-	HookOnWarning      HookType = "on_warning"
-	HookOnDebug        HookType = "on_debug"
-	HookOnMessage      HookType = "on_message"
+	HookOnLoad             HookType = "on_load"
+	HookOnClose            HookType = "on_close"
+	HookOnCreate           HookType = "on_create"
+	HookOnDelete           HookType = "on_delete"
+	HookOnShellRunIn       HookType = "on_shell_run_in"
+	HookOnShellRunOut      HookType = "on_shell_run_out"
+	HookOnPluginWakeup     HookType = "on_plugin_wakeup"
+	HookOnError            HookType = "on_error"
+	HookOnWarning          HookType = "on_warning"
+	HookOnDebug            HookType = "on_debug"
+	HookOnMessage          HookType = "on_message"
+	HookOnTmuxSessionStart HookType = "on_tmux_session_start"
+	HookOnTmuxWindow       HookType = "on_tmux_window"
 )
 
 type HookContext struct {
@@ -43,6 +45,18 @@ type WarningPayload struct {
 type DebugPayload struct {
 	Message string `json:"message"`
 	Context string `json:"context,omitempty"`
+	Project string `json:"project"`
+}
+
+type TmuxSessionPayload struct {
+	Session string `json:"session"`
+	Project string `json:"project"`
+}
+
+type TmuxWindowPayload struct {
+	Session string `json:"session"`
+	Window  int    `json:"window"`
+	Command string `json:"command"`
 	Project string `json:"project"`
 }
 
