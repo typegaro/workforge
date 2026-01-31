@@ -71,6 +71,30 @@ func (s *PluginInstallerService) Uninstall(name string) error {
 	return s.registry.Remove(name)
 }
 
+func (s *PluginInstallerService) Register(name string) error {
+	pluginPath := filepath.Join(s.pluginsDir, name)
+
+	if _, err := os.Stat(pluginPath); err != nil {
+		return fmt.Errorf("plugin directory not found: %s", pluginPath)
+	}
+
+	manifest, err := LoadManifest(pluginPath)
+	if err != nil {
+		return fmt.Errorf("invalid plugin (no plugin.json): %w", err)
+	}
+
+	entry := PluginEntry{
+		Name:       manifest.Name,
+		URL:        "local",
+		ConfigKey:  manifest.ConfigKey,
+		Hooks:      manifest.Hooks,
+		Entrypoint: manifest.Entrypoint,
+		Runtime:    manifest.Runtime,
+	}
+
+	return s.registry.Add(entry)
+}
+
 func extractRepoName(url string) string {
 	url = strings.TrimSuffix(url, ".git")
 	parts := strings.Split(url, "/")

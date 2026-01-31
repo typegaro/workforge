@@ -76,6 +76,20 @@ func NewPluginCmd() *cobra.Command {
 		},
 	}
 
+	registerCmd := &cobra.Command{
+		Use:   "register <name>",
+		Short: "Register an existing plugin directory",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := args[0]
+			if err := installer.Register(name); err != nil {
+				log.Error("register plugin: %v", err)
+				return
+			}
+			fmt.Printf("Registered plugin: %s\n", name)
+		},
+	}
+
 	healthcheckCmd := &cobra.Command{
 		Use:     "healthcheck",
 		Aliases: []string{"hc"},
@@ -98,6 +112,6 @@ func NewPluginCmd() *cobra.Command {
 		},
 	}
 
-	pluginCmd.AddCommand(addCmd, listCmd, rmCmd, healthcheckCmd)
+	pluginCmd.AddCommand(addCmd, listCmd, rmCmd, registerCmd, healthcheckCmd)
 	return pluginCmd
 }

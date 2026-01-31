@@ -5,15 +5,14 @@ import (
 	"path/filepath"
 
 	"workforge/internal/app"
-	appgit "workforge/internal/app/git"
 	"workforge/internal/app/project"
-	"workforge/internal/infra/log"
 
 	"github.com/spf13/cobra"
 )
 
 func Execute() {
 	orchestrator := app.NewOrchestrator()
+	logSvc := NewLogService(orchestrator)
 
 	var rootCmd = &cobra.Command{
 		Use:   "wf",
@@ -32,7 +31,7 @@ func Execute() {
 				url = args[0]
 			}
 			if err := orchestrator.InitProject(url, gwtFlag); err != nil {
-				log.Error("%v", err)
+				logSvc.Error("init", err)
 			}
 		},
 	}
@@ -51,12 +50,12 @@ func Execute() {
 			}
 			if loadProfile != "" {
 				if err := orchestrator.LoadProject(path, false, &loadProfile); err != nil {
-					log.Error("error loading project: %v", err)
+					logSvc.Error("load", err)
 				}
 				return
 			}
 			if err := orchestrator.LoadProject(path, false, nil); err != nil {
-				log.Error("error loading project: %v", err)
+				logSvc.Error("load", err)
 			}
 		},
 	}
@@ -69,7 +68,7 @@ func Execute() {
 		Run: func(cmd *cobra.Command, args []string) {
 			entries, err := orchestrator.Projects().SortedProjectEntries()
 			if err != nil {
-				log.Error("error loading projects: %v", err)
+				logSvc.Error("list", err)
 				return
 			}
 			for _, entry := range entries {
@@ -87,7 +86,7 @@ func Execute() {
 			name := args[0]
 			entry, err := orchestrator.Projects().FindProjectEntry(name)
 			if err != nil {
-				log.Error("%v", err)
+				logSvc.Error("open", err)
 				return
 			}
 			var profile *string
@@ -95,7 +94,7 @@ func Execute() {
 				profile = &openProfile
 			}
 			if err := orchestrator.LoadProject(entry.Path, entry.IsGWT, profile); err != nil {
-				log.Error("error loading project: %v", err)
+				logSvc.Error("open", err)
 			}
 		},
 	}
@@ -120,7 +119,7 @@ func Execute() {
 				branch = args[1]
 			}
 			if err := orchestrator.Git().AddWorktree(worktreePath, branch, addCreateBranch, addBaseBranch); err != nil {
-				log.Error("error adding worktree: %v", err)
+				logSvc.Error("add worktree", err)
 				return
 			}
 		},
@@ -139,18 +138,10 @@ func Execute() {
 			leafPath, err := orchestrator.RemoveWorktree(name)
 			if err != nil {
 				if _, ok := err.(project.WorktreeNotFoundError); ok {
-					log.Warn("could not locate worktree directory for: %s", name)
+					logSvc.Warn("remove worktree", "could not locate worktree directory for: %s", name)
 					return
 				}
-				if _, ok := err.(appgit.OnDeleteError); ok {
-					log.Error("on_delete hook error: %v", err)
-					return
-				}
-				if _, ok := err.(appgit.RemoveWorktreeError); ok {
-					log.Error("error removing worktree: %v", err)
-					return
-				}
-				log.Error("error removing worktree: %v", err)
+				logSvc.Error("remove worktree", err)
 				return
 			}
 			_ = leafPath

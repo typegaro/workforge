@@ -36,6 +36,22 @@ func (s *HookService) RunOnDelete(ctx HookContext) ([]HookResult, error) {
 	return s.runHook(HookOnDelete, ctx)
 }
 
+func (s *HookService) RunOnError(payload ErrorPayload) []HookResult {
+	return s.runPluginHooksWithPayload(HookOnError, payload)
+}
+
+func (s *HookService) RunOnMessage(payload MessagePayload) []HookResult {
+	return s.runPluginHooksWithPayload(HookOnMessage, payload)
+}
+
+func (s *HookService) RunOnWarning(payload WarningPayload) []HookResult {
+	return s.runPluginHooksWithPayload(HookOnWarning, payload)
+}
+
+func (s *HookService) RunOnDebug(payload DebugPayload) []HookResult {
+	return s.runPluginHooksWithPayload(HookOnDebug, payload)
+}
+
 func (s *HookService) runHook(hookType HookType, ctx HookContext) ([]HookResult, error) {
 	if err := s.runShellHooks(hookType, ctx.ShellCommands); err != nil {
 		return nil, err
@@ -79,6 +95,46 @@ func (s *HookService) runPluginHooks(hookType HookType, pluginConfigs map[string
 
 		params := pluginConfigs[p.ConfigKey]
 		resp, err := s.pluginSvc.Call(p.Name, hookName, params)
+		if err != nil {
+			results = append(results, HookResult{
+				PluginName: p.Name,
+				Error:      err,
+			})
+			continue
+		}
+
+		results = append(results, HookResult{
+			PluginName: p.Name,
+			Response:   string(resp),
+		})
+	}
+
+	return results
+}
+
+func (s *HookService) runPluginHooksWithPayload(hookType HookType, payload interface{}) []HookResult {
+	plugins, err := s.pluginRegistry.List()
+	if err != nil {
+		return []HookResult{{Error: fmt.Errorf("load plugin registry: %w", err)}}
+	}
+
+	var results []HookResult
+	hookName := string(hookType)
+
+	for _, p := range plugins {
+		if !hasHook(p.Hooks, hookName) {
+			continue
+		}
+
+		if err := s.pluginSvc.Wakeup(p.Name); err != nil {
+			results = append(results, HookResult{
+				PluginName: p.Name,
+				Error:      err,
+			})
+			continue
+		}
+
+		resp, err := s.pluginSvc.Call(p.Name, hookName, payload)
 		if err != nil {
 			results = append(results, HookResult{
 				PluginName: p.Name,
