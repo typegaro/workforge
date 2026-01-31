@@ -73,8 +73,12 @@ func (s *PluginService) Wakeup(name string) error {
 	}
 
 	pluginDir := filepath.Join(s.pluginsDir, name)
-	entrypoint := filepath.Join(pluginDir, "main.py")
+	manifest, err := LoadManifest(pluginDir)
+	if err != nil {
+		return fmt.Errorf("load plugin manifest: %w", err)
+	}
 
+	entrypoint := filepath.Join(pluginDir, manifest.Entrypoint)
 	if _, err := os.Stat(entrypoint); err != nil {
 		return fmt.Errorf("plugin %q not found: %w", name, err)
 	}
@@ -89,7 +93,7 @@ func (s *PluginService) Wakeup(name string) error {
 		return fmt.Errorf("cleanup old socket: %w", err)
 	}
 
-	cmd := exec.Command("python3", entrypoint, socketPath)
+	cmd := exec.Command(manifest.Runtime, entrypoint, socketPath)
 	cmd.Dir = pluginDir
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start plugin %q: %w", name, err)

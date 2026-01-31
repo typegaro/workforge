@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
-	"workforge/internal/infra/exec"
 	"workforge/internal/infra/log"
 )
 
@@ -83,16 +82,6 @@ func (s *ConfigService) SelectProfile(cfg Config, requested *string) (string, er
 		return DefaultProfile, nil
 	}
 	return "", fmt.Errorf("multiple profiles defined; specify --profile")
-}
-
-func (s *ConfigService) RunHooks(label string, hooks []string, logFn func(string, ...any)) error {
-	for i, cmd := range hooks {
-		logFn("running %s hook #%d: %s", label, i+1, cmd)
-		if err := exec.RunSyncUserShell(cmd); err != nil {
-			return fmt.Errorf("%s hook %d failed: %w", label, i+1, err)
-		}
-	}
-	return nil
 }
 
 func (s *ConfigService) SetLogLevel(level string) {

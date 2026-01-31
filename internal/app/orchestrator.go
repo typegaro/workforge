@@ -7,6 +7,8 @@ import (
 
 	"workforge/internal/app/config"
 	appgit "workforge/internal/app/git"
+	"workforge/internal/app/hook"
+	"workforge/internal/app/plugin"
 	"workforge/internal/app/project"
 	"workforge/internal/infra/exec"
 	"workforge/internal/infra/log"
@@ -18,16 +20,24 @@ type Orchestrator struct {
 	projects *project.ProjectService
 	config   *config.ConfigService
 	git      *appgit.Service
+	hooks    *hook.HookService
 }
 
 func NewOrchestrator() *Orchestrator {
 	projectService := project.NewService()
 	configService := config.NewConfigService()
 	gitService := appgit.NewService(projectService)
+
+	pluginsDir := plugin.DefaultPluginsDir()
+	pluginRegistry := plugin.NewPluginRegistryService(plugin.DefaultRegistryPath())
+	pluginSvc := plugin.NewPluginService(pluginsDir, plugin.DefaultSocketsDir())
+	hookService := hook.NewHookService(pluginSvc, pluginRegistry)
+
 	return &Orchestrator{
 		projects: projectService,
 		config:   configService,
 		git:      gitService,
+		hooks:    hookService,
 	}
 }
 
@@ -41,6 +51,10 @@ func (o *Orchestrator) Config() *config.ConfigService {
 
 func (o *Orchestrator) Git() *appgit.Service {
 	return o.git
+}
+
+func (o *Orchestrator) Hooks() *hook.HookService {
+	return o.hooks
 }
 
 func (o *Orchestrator) InitProject(url string, gwt bool) error {
@@ -63,11 +77,16 @@ func (o *Orchestrator) LoadProject(path string, gwt bool, profile *string) error
 		return err
 	}
 	o.config.SetLogLevel(cfg[currentProfile].LogLevel)
-	onLoad := cfg[currentProfile].Hooks.OnLoad
 	log.Debug("using profile: %s", currentProfile)
-	if err := o.config.RunHooks("on_load", onLoad, log.Debug); err != nil {
+
+	hookCtx := hook.HookContext{
+		ShellCommands: cfg[currentProfile].Hooks.OnLoad,
+		PluginConfigs: cfg[currentProfile].Extras,
+	}
+	if _, err := o.hooks.RunOnLoad(hookCtx); err != nil {
 		return err
 	}
+	defer o.hooks.KillAllPlugins()
 
 	if cfg[currentProfile].Tmux == nil {
 		foreground := cfg[currentProfile].Foreground
@@ -105,10 +124,16 @@ func (o *Orchestrator) RunOnDelete(projectPath string, isGWT bool, profile *stri
 	if err != nil {
 		return err
 	}
-	onDelete := cfg[currentProfile].Hooks.OnDelete
-	if err := o.config.RunHooks("on_delete", onDelete, log.Info); err != nil {
+
+	hookCtx := hook.HookContext{
+		ShellCommands: cfg[currentProfile].Hooks.OnDelete,
+		PluginConfigs: cfg[currentProfile].Extras,
+	}
+	if _, err := o.hooks.RunOnDelete(hookCtx); err != nil {
 		return err
 	}
+	defer o.hooks.KillAllPlugins()
+
 	return nil
 }
 
