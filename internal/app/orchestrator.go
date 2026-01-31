@@ -15,14 +15,14 @@ import (
 )
 
 type Orchestrator struct {
-	projects *project.Service
-	config   *config.Service
+	projects *project.ProjectService
+	config   *config.ConfigService
 	git      *appgit.Service
 }
 
 func NewOrchestrator() *Orchestrator {
 	projectService := project.NewService()
-	configService := config.NewService()
+	configService := config.NewConfigService()
 	gitService := appgit.NewService(projectService)
 	return &Orchestrator{
 		projects: projectService,
@@ -31,11 +31,11 @@ func NewOrchestrator() *Orchestrator {
 	}
 }
 
-func (o *Orchestrator) Projects() *project.Service {
+func (o *Orchestrator) Projects() *project.ProjectService {
 	return o.projects
 }
 
-func (o *Orchestrator) Config() *config.Service {
+func (o *Orchestrator) Config() *config.ConfigService {
 	return o.config
 }
 

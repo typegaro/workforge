@@ -1,102 +1,25 @@
 package project
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"workforge/internal/infra/fs"
 	"workforge/internal/infra/log"
 )
 
-const WorkForgeConfigFile = "workforge.json"
-
-type Projects map[string]Project
-
-type Project struct {
-	Name        string   `json:"name"`
-	Path        string   `json:"path"`
-	GitWorkTree bool     `json:"git_work_tree"`
-	Tags        []string `json:"tags,omitempty"`
+type ProjectService struct {
+	registry *ProjectRegistryService
 }
 
-type ProjectEntry struct {
-	Project
-	IsGWT bool
+func NewService() *ProjectService {
+	return &ProjectService{registry: NewProjectRegistryService()}
 }
 
-type WorktreeNotFoundError struct {
-	Name string
-}
-
-func (e WorktreeNotFoundError) Error() string {
-	return fmt.Sprintf("worktree %q not found", e.Name)
-}
-
-type Service struct {
-	paths *fs.PathResolver
-}
-
-func NewService() *Service {
-	return &Service{paths: fs.NewPathResolver()}
-}
-
-func (s *Service) registryPath() (string, error) {
-	return s.paths.RegistryPath()
-}
-
-func (s *Service) ensureRegistry() (string, error) {
-	path, err := s.registryPath()
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Dir(path)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return "", fmt.Errorf("failed to create workforge config directory: %w", err)
-		}
-	}
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
-			return "", fmt.Errorf("failed to create workforge config file: %w", err)
-		}
-	}
-	return path, nil
-}
-
-func (s *Service) loadProjects() (Projects, error) {
-	regPath, err := s.ensureRegistry()
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(regPath)
-	if err != nil {
-		return nil, fmt.Errorf("error reading file: %w", err)
-	}
-	var projects Projects
-	if err := json.Unmarshal(data, &projects); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %w", err)
-	}
-	return projects, nil
-}
-
-func (s *Service) saveProjects(projects Projects) error {
-	regPath, err := s.ensureRegistry()
-	if err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(projects, "", "  ")
-	if err != nil {
-		return fmt.Errorf("error marshalling JSON: %w", err)
-	}
-	return os.WriteFile(regPath, data, 0644)
-}
-
-func (s *Service) listProjectsExpanded() (Projects, map[string]bool, error) {
-	base, err := s.loadProjects()
+func (s *ProjectService) listProjectsExpanded() (Projects, map[string]bool, error) {
+	base, err := s.registry.Load()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -146,7 +69,7 @@ func isGWTLeaf(path string) bool {
 	return !st.IsDir()
 }
 
-func (s *Service) SortedProjectEntries() ([]ProjectEntry, error) {
+func (s *ProjectService) SortedProjectEntries() ([]ProjectEntry, error) {
 	projs, hitmap, err := s.listProjectsExpanded()
 	if err != nil {
 		return nil, err
@@ -162,7 +85,7 @@ func (s *Service) SortedProjectEntries() ([]ProjectEntry, error) {
 	return entries, nil
 }
 
-func (s *Service) FindProjectEntry(name string) (ProjectEntry, error) {
+func (s *ProjectService) FindProjectEntry(name string) (ProjectEntry, error) {
 	if name == "" {
 		return ProjectEntry{}, fmt.Errorf("project name cannot be empty")
 	}
@@ -180,7 +103,7 @@ func (s *Service) FindProjectEntry(name string) (ProjectEntry, error) {
 	return ProjectEntry{Project: project, IsGWT: hitmap[name]}, nil
 }
 
-func (s *Service) GetProjectPath(name string) (string, bool, error) {
+func (s *ProjectService) GetProjectPath(name string) (string, bool, error) {
 	entry, err := s.FindProjectEntry(name)
 	if err != nil {
 		return "", false, err
@@ -188,11 +111,11 @@ func (s *Service) GetProjectPath(name string) (string, bool, error) {
 	return entry.Path, entry.IsGWT, nil
 }
 
-func (s *Service) AddProject(name string, gwt bool, path *string) error {
+func (s *ProjectService) AddProject(name string, gwt bool, path *string) error {
 	var absPath string
 	var err error
 	if path != nil {
-		absPath, err = s.paths.NormalizePath(*path)
+		absPath, err = s.registry.paths.NormalizePath(*path)
 		if err != nil {
 			return fmt.Errorf("failed to resolve project path: %w", err)
 		}
@@ -201,26 +124,26 @@ func (s *Service) AddProject(name string, gwt bool, path *string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get current directory: %w", err)
 		}
-		absPath, err = s.paths.NormalizePath(cwd)
+		absPath, err = s.registry.paths.NormalizePath(cwd)
 		if err != nil {
 			return fmt.Errorf("failed to resolve project path: %w", err)
 		}
 	}
 	log.Info("Adding project: %s (path: %s, gwt: %t)", name, absPath, gwt)
-	projects, err := s.loadProjects()
+	projects, err := s.registry.Load()
 	if err != nil {
 		projects = make(Projects)
 	}
 	log.Debug("Loaded existing projects: %+v", projects)
 	projects[name] = Project{Name: name, Path: absPath, GitWorkTree: gwt}
-	if err := s.saveProjects(projects); err != nil {
+	if err := s.registry.Save(projects); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Service) AddLeaf(absLeafPath string) error {
-	projects, err := s.loadProjects()
+func (s *ProjectService) AddLeaf(absLeafPath string) error {
+	projects, err := s.registry.Load()
 	if err != nil {
 		projects = make(Projects)
 	}
@@ -253,13 +176,13 @@ func (s *Service) AddLeaf(absLeafPath string) error {
 		key = baseName + "/" + leafName
 	}
 	projects[key] = Project{Name: key, Path: absLeafPath, GitWorkTree: true}
-	if err := s.saveProjects(projects); err != nil {
+	if err := s.registry.Save(projects); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Service) AddTag(projectName string, tag string) error {
+func (s *ProjectService) AddTag(projectName string, tag string) error {
 	projectName = strings.TrimSpace(projectName)
 	tag = strings.TrimSpace(tag)
 	if projectName == "" {
@@ -268,7 +191,7 @@ func (s *Service) AddTag(projectName string, tag string) error {
 	if tag == "" {
 		return fmt.Errorf("tag cannot be empty")
 	}
-	projects, err := s.loadProjects()
+	projects, err := s.registry.Load()
 	if err != nil {
 		return err
 	}
@@ -284,10 +207,10 @@ func (s *Service) AddTag(projectName string, tag string) error {
 	project.Tags = append(project.Tags, tag)
 	sort.Strings(project.Tags)
 	projects[projectName] = project
-	return s.saveProjects(projects)
+	return s.registry.Save(projects)
 }
 
-func (s *Service) RemoveTag(projectName string, tag string) error {
+func (s *ProjectService) RemoveTag(projectName string, tag string) error {
 	projectName = strings.TrimSpace(projectName)
 	tag = strings.TrimSpace(tag)
 	if projectName == "" {
@@ -296,7 +219,7 @@ func (s *Service) RemoveTag(projectName string, tag string) error {
 	if tag == "" {
 		return fmt.Errorf("tag cannot be empty")
 	}
-	projects, err := s.loadProjects()
+	projects, err := s.registry.Load()
 	if err != nil {
 		return err
 	}
@@ -315,17 +238,17 @@ func (s *Service) RemoveTag(projectName string, tag string) error {
 	}
 	project.Tags = filtered
 	projects[projectName] = project
-	return s.saveProjects(projects)
+	return s.registry.Save(projects)
 }
 
-func (s *Service) EnterProjectDir(projectPath string) error {
+func (s *ProjectService) EnterProjectDir(projectPath string) error {
 	if err := os.Chdir(projectPath); err != nil {
 		return fmt.Errorf("chdir to %q failed: %w", projectPath, err)
 	}
 	return nil
 }
 
-func (s *Service) ResolveWorktreeLeaf(name string) (string, error) {
+func (s *ProjectService) ResolveWorktreeLeaf(name string) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("error getting current directory: %w", err)

@@ -9,3 +9,7 @@ default:
     session_name: "wf"
     windows:
       - "nvim ."
+
+  timezone_greeter:
+    timezone: "Europe/Rome"
+    format: "%H:%M:%S"

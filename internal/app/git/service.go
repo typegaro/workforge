@@ -6,10 +6,10 @@ import (
 )
 
 type Service struct {
-	projects *project.Service
+	projects *project.ProjectService
 }
 
-func NewService(projects *project.Service) *Service {
+func NewService(projects *project.ProjectService) *Service {
 	return &Service{projects: projects}
 }
 
