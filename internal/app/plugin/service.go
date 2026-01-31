@@ -222,6 +222,29 @@ func (s *PluginService) IsRunning(name string) bool {
 	return s.isAlive(info)
 }
 
+func (s *PluginService) Ping(name string) (bool, error) {
+	socketPath := filepath.Join(s.socketsDir, name+".sock")
+	conn, err := net.DialTimeout("unix", socketPath, 500*time.Millisecond)
+	if err != nil {
+		return false, nil
+	}
+	defer conn.Close()
+
+	req := Request{JSONRPC: "2.0", ID: 1, Method: "on_ping"}
+	conn.SetDeadline(time.Now().Add(2 * time.Second))
+
+	if err := json.NewEncoder(conn).Encode(req); err != nil {
+		return false, nil
+	}
+
+	var resp Response
+	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
+		return false, nil
+	}
+
+	return resp.Error == nil, nil
+}
+
 func (s *PluginService) ListRunning() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

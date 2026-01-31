@@ -62,6 +62,37 @@ func NewPluginCmd() *cobra.Command {
 		},
 	}
 
+	listActiveCmd := &cobra.Command{
+		Use:   "active",
+		Short: "List currently running plugins (using ping)",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			plugins, err := registry.List()
+			if err != nil {
+				log.Error("list plugins: %v", err)
+				return
+			}
+			if len(plugins) == 0 {
+				fmt.Println("No plugins installed")
+				return
+			}
+			var active []string
+			for _, p := range plugins {
+				if ok, _ := pluginSvc.Ping(p.Name); ok {
+					active = append(active, p.Name)
+				}
+			}
+			if len(active) == 0 {
+				fmt.Println("No active plugins")
+				return
+			}
+			for _, name := range active {
+				fmt.Println(name)
+			}
+		},
+	}
+	listCmd.AddCommand(listActiveCmd)
+
 	rmCmd := &cobra.Command{
 		Use:   "rm <name>",
 		Short: "Remove an installed plugin",

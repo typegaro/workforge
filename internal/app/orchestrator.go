@@ -96,7 +96,6 @@ func (o *Orchestrator) LoadProject(path string, gwt bool, profile *string, proje
 	if _, err := o.hooks.RunOnLoad(hookCtx); err != nil {
 		return err
 	}
-	defer o.hooks.KillAllPlugins()
 
 	shellRunInCtx := hook.HookContext{
 		ShellCommands: cfg[currentProfile].Hooks.OnShellRunIn,
@@ -171,7 +170,6 @@ func (o *Orchestrator) RunOnDelete(projectPath string, isGWT bool, profile *stri
 	if _, err := o.hooks.RunOnDelete(hookCtx); err != nil {
 		return err
 	}
-	defer o.hooks.KillAllPlugins()
 
 	return nil
 }

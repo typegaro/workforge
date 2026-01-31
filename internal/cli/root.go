@@ -149,6 +149,5 @@ func Execute() {
 	}
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(NewPluginCmd())
-	rootCmd.AddCommand(NewHealthcheckCmd())
 	rootCmd.Execute()
 }

@@ -32,7 +32,6 @@ type HookRunner interface {
 	RunOnWarning(payload hook.WarningPayload) []hook.HookResult
 	RunOnDebug(payload hook.DebugPayload) []hook.HookResult
 	RunOnMessage(payload hook.MessagePayload) []hook.HookResult
-	KillAllPlugins()
 }
 
 type LogService struct {
@@ -63,7 +62,6 @@ func (s *LogService) Error(context string, err error) {
 			Context: context,
 			Project: s.project,
 		})
-		s.hooks.KillAllPlugins()
 	}
 }
 
@@ -77,7 +75,6 @@ func (s *LogService) ErrorMsg(context string, msg string, args ...any) {
 			Context: context,
 			Project: s.project,
 		})
-		s.hooks.KillAllPlugins()
 	}
 }
 
@@ -134,12 +131,6 @@ func (s *LogService) Debug(context string, msg string, args ...any) {
 			Context: context,
 			Project: s.project,
 		})
-	}
-}
-
-func (s *LogService) KillPlugins() {
-	if s.hooks != nil {
-		s.hooks.KillAllPlugins()
 	}
 }
 

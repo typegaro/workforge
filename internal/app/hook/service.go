@@ -113,9 +113,14 @@ func (s *HookService) runPluginHooks(hookType HookType, pluginConfigs map[string
 			continue
 		}
 
+		response := cleanResponse(resp)
+		if response != "" {
+			fmt.Println(response)
+		}
+
 		results = append(results, HookResult{
 			PluginName: p.Name,
-			Response:   string(resp),
+			Response:   response,
 		})
 	}
 
@@ -192,4 +197,12 @@ func hasHook(hooks []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func cleanResponse(resp []byte) string {
+	s := strings.TrimSpace(string(resp))
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		s = s[1 : len(s)-1]
+	}
+	return s
 }
