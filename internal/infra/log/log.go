@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+var verboseFlag = "false"
+
+func Verbose() bool {
+	return verboseFlag == "true"
+}
+
 type LogLevel int
 
 const (
@@ -49,11 +55,11 @@ const (
 )
 
 const (
-	iconInfo    = ""
-	iconWarn    = ""
-	iconError   = ""
-	iconSuccess = ""
-	iconDebug   = ""
+	iconInfo    = ""
+	iconWarn    = ""
+	iconError   = ""
+	iconSuccess = ""
+	iconDebug   = ""
 )
 
 func out(w *os.File, color, icon, label, msg string, args ...any) {
@@ -65,7 +71,7 @@ func out(w *os.File, color, icon, label, msg string, args ...any) {
 }
 
 func Debug(msg string, args ...any) {
-	if currentLevel >= LevelDebug {
+	if Verbose() && currentLevel >= LevelDebug {
 		out(os.Stdout, colMagenta, iconDebug, "DEBUG", msg, args...)
 	}
 }
@@ -83,7 +89,7 @@ func Success(msg string, args ...any) {
 }
 
 func Warn(msg string, args ...any) {
-	if currentLevel >= LevelWarn {
+	if Verbose() && currentLevel >= LevelWarn {
 		out(os.Stderr, colYellow, iconWarn, "WARN", msg, args...)
 	}
 }

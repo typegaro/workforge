@@ -193,6 +193,24 @@ func (s *PluginService) KillAll() {
 	}
 }
 
+// WakeupResult contains the result of an async wakeup operation
+type WakeupResult struct {
+	Name  string
+	Error error
+}
+
+// WakeupAsync starts a plugin asynchronously and returns immediately.
+// The result is sent to the returned channel when the wakeup completes or fails.
+func (s *PluginService) WakeupAsync(name string) <-chan WakeupResult {
+	ch := make(chan WakeupResult, 1)
+	go func() {
+		err := s.Wakeup(name)
+		ch <- WakeupResult{Name: name, Error: err}
+		close(ch)
+	}()
+	return ch
+}
+
 func (s *PluginService) IsRunning(name string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -215,7 +233,7 @@ func (s *PluginService) ListRunning() []string {
 	return names
 }
 
-func (s *PluginService) RunHook(registry *PluginRegistryService, hook string) map[string]HookResult {
+func (s *PluginService) RunHook(registry *PluginRegistryService, hook string, payload interface{}) map[string]HookResult {
 	plugins, err := registry.List()
 	if err != nil {
 		return map[string]HookResult{"registry": {Error: err}}
@@ -232,7 +250,7 @@ func (s *PluginService) RunHook(registry *PluginRegistryService, hook string) ma
 			continue
 		}
 
-		resp, err := s.Call(p.Name, hook, nil)
+		resp, err := s.Call(p.Name, hook, payload)
 		if err != nil {
 			results[p.Name] = HookResult{Error: err}
 			continue

@@ -12,7 +12,7 @@ import (
 
 func Execute() {
 	orchestrator := app.NewOrchestrator()
-	logSvc := NewLogService(orchestrator)
+	logSvc := orchestrator.Log()
 
 	var rootCmd = &cobra.Command{
 		Use:   "wf",
@@ -49,12 +49,12 @@ func Execute() {
 				path = filepath.Join(path, args[0])
 			}
 			if loadProfile != "" {
-				if err := orchestrator.LoadProject(path, false, &loadProfile); err != nil {
+				if err := orchestrator.LoadProject(path, false, &loadProfile, ""); err != nil {
 					logSvc.Error("load", err)
 				}
 				return
 			}
-			if err := orchestrator.LoadProject(path, false, nil); err != nil {
+			if err := orchestrator.LoadProject(path, false, nil, ""); err != nil {
 				logSvc.Error("load", err)
 			}
 		},
@@ -93,7 +93,7 @@ func Execute() {
 			if openProfile != "" {
 				profile = &openProfile
 			}
-			if err := orchestrator.LoadProject(entry.Path, entry.IsGWT, profile); err != nil {
+			if err := orchestrator.LoadProject(entry.Path, entry.IsGWT, profile, entry.Name); err != nil {
 				logSvc.Error("open", err)
 			}
 		},

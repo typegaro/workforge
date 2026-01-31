@@ -96,7 +96,8 @@ func NewPluginCmd() *cobra.Command {
 		Short:   "Run healthcheck on all plugins that support it",
 		Args:    cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			results := pluginSvc.RunHook(registry, "on_healthcheck")
+			payload := map[string]interface{}{"project": projectNameFromCwd()}
+			results := pluginSvc.RunHook(registry, "on_healthcheck", payload)
 			if len(results) == 0 {
 				fmt.Println("No plugins with healthcheck support")
 				return
@@ -112,6 +113,53 @@ func NewPluginCmd() *cobra.Command {
 		},
 	}
 
-	pluginCmd.AddCommand(addCmd, listCmd, rmCmd, registerCmd, healthcheckCmd)
+	runCmd := &cobra.Command{
+		Use:   "run <name>",
+		Short: "Wake up a plugin asynchronously and run on_plugin_wakeup hook",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := args[0]
+
+			resultCh := pluginSvc.WakeupAsync(name)
+			fmt.Printf("Starting plugin %s...\n", name)
+
+			result := <-resultCh
+			if result.Error != nil {
+				log.Error("wakeup plugin: %v", result.Error)
+				return
+			}
+			log.Info("Plugin %s is running", name)
+
+			payload := map[string]interface{}{"project": projectNameFromCwd()}
+			resp, err := pluginSvc.Call(name, "on_plugin_wakeup", payload)
+			if err != nil {
+				log.Error("call on_plugin_wakeup: %v", err)
+				return
+			}
+			if len(resp) > 0 {
+				fmt.Printf("%s\n", string(resp))
+			}
+		},
+	}
+
+	killCmd := &cobra.Command{
+		Use:   "kill <name>",
+		Short: "Kill a running plugin",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := args[0]
+			if !pluginSvc.IsRunning(name) {
+				fmt.Printf("Plugin %s is not running\n", name)
+				return
+			}
+			if err := pluginSvc.Kill(name); err != nil {
+				log.Error("kill plugin: %v", err)
+				return
+			}
+			fmt.Printf("Killed plugin: %s\n", name)
+		},
+	}
+
+	pluginCmd.AddCommand(addCmd, listCmd, rmCmd, registerCmd, healthcheckCmd, runCmd, killCmd)
 	return pluginCmd
 }

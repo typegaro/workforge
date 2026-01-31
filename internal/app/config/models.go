@@ -8,6 +8,10 @@ default:
   hooks:
     on_load:
       - "echo \"Welcome in your project!\""
+    on_shell_run_in:
+      - "echo \"Starting shell session...\""
+    on_shell_run_out:
+      - "echo \"Shell session ended.\""
   tmux:
     attach: false 
     session_name: "test_prj"
@@ -27,10 +31,12 @@ type Template struct {
 }
 
 type Hooks struct {
-	OnCreate []string `yaml:"on_create,omitempty"`
-	OnLoad   []string `yaml:"on_load,omitempty"`
-	OnClose  []string `yaml:"on_close,omitempty"`
-	OnDelete []string `yaml:"on_delete,omitempty"`
+	OnCreate      []string `yaml:"on_create,omitempty"`
+	OnLoad        []string `yaml:"on_load,omitempty"`
+	OnClose       []string `yaml:"on_close,omitempty"`
+	OnDelete      []string `yaml:"on_delete,omitempty"`
+	OnShellRunIn  []string `yaml:"on_shell_run_in,omitempty"`
+	OnShellRunOut []string `yaml:"on_shell_run_out,omitempty"`
 }
 
 type Tmux struct {

@@ -2,6 +2,7 @@ package hook
 
 import (
 	"fmt"
+	"strings"
 
 	"workforge/internal/app/plugin"
 	"workforge/internal/infra/exec"
@@ -36,6 +37,14 @@ func (s *HookService) RunOnDelete(ctx HookContext) ([]HookResult, error) {
 	return s.runHook(HookOnDelete, ctx)
 }
 
+func (s *HookService) RunOnShellRunIn(ctx HookContext) ([]HookResult, error) {
+	return s.runHook(HookOnShellRunIn, ctx)
+}
+
+func (s *HookService) RunOnShellRunOut(ctx HookContext) ([]HookResult, error) {
+	return s.runHook(HookOnShellRunOut, ctx)
+}
+
 func (s *HookService) RunOnError(payload ErrorPayload) []HookResult {
 	return s.runPluginHooksWithPayload(HookOnError, payload)
 }
@@ -57,7 +66,7 @@ func (s *HookService) runHook(hookType HookType, ctx HookContext) ([]HookResult,
 		return nil, err
 	}
 
-	results := s.runPluginHooks(hookType, ctx.PluginConfigs)
+	results := s.runPluginHooks(hookType, ctx.PluginConfigs, ctx.ProjectName)
 	return results, nil
 }
 
@@ -71,7 +80,7 @@ func (s *HookService) runShellHooks(hookType HookType, commands []string) error 
 	return nil
 }
 
-func (s *HookService) runPluginHooks(hookType HookType, pluginConfigs map[string]interface{}) []HookResult {
+func (s *HookService) runPluginHooks(hookType HookType, pluginConfigs map[string]interface{}, projectName string) []HookResult {
 	plugins, err := s.pluginRegistry.List()
 	if err != nil {
 		return []HookResult{{Error: fmt.Errorf("load plugin registry: %w", err)}}
@@ -94,7 +103,8 @@ func (s *HookService) runPluginHooks(hookType HookType, pluginConfigs map[string
 		}
 
 		params := pluginConfigs[p.ConfigKey]
-		resp, err := s.pluginSvc.Call(p.Name, hookName, params)
+		payload := addProjectToPayload(projectName, params)
+		resp, err := s.pluginSvc.Call(p.Name, hookName, payload)
 		if err != nil {
 			results = append(results, HookResult{
 				PluginName: p.Name,
@@ -110,6 +120,25 @@ func (s *HookService) runPluginHooks(hookType HookType, pluginConfigs map[string
 	}
 
 	return results
+}
+
+func addProjectToPayload(projectName string, payload interface{}) interface{} {
+	name := strings.TrimSpace(projectName)
+	if payload == nil {
+		return map[string]interface{}{"project": name}
+	}
+	if configMap, ok := payload.(map[string]interface{}); ok {
+		out := make(map[string]interface{}, len(configMap)+1)
+		for key, value := range configMap {
+			out[key] = value
+		}
+		out["project"] = name
+		return out
+	}
+	return map[string]interface{}{
+		"project": name,
+		"params":  payload,
+	}
 }
 
 func (s *HookService) runPluginHooksWithPayload(hookType HookType, payload interface{}) []HookResult {

@@ -20,8 +20,8 @@ func (e RemoveWorktreeError) Error() string {
 	return e.Err.Error()
 }
 
-func RemoveWorktree(leafPath string, onDeleteFunc func(string, bool, *string) error) (string, error) {
-	if err := onDeleteFunc(leafPath, true, nil); err != nil {
+func RemoveWorktree(leafPath string, projectName string, onDeleteFunc func(string, bool, *string, string) error) (string, error) {
+	if err := onDeleteFunc(leafPath, true, nil, projectName); err != nil {
 		return "", OnDeleteError{Err: err}
 	}
 	if err := exec.RunSyncCommand("git", "worktree", "remove", leafPath); err != nil {

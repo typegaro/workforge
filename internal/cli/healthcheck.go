@@ -19,7 +19,8 @@ func NewHealthcheckCmd() *cobra.Command {
 		Short:   "Run healthcheck on all plugins that support it",
 		Args:    cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			results := pluginSvc.RunHook(registry, "on_healthcheck")
+			payload := map[string]interface{}{"project": projectNameFromCwd()}
+			results := pluginSvc.RunHook(registry, "on_healthcheck", payload)
 			if len(results) == 0 {
 				fmt.Println("No plugins with healthcheck support")
 				return

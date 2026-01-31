@@ -1,66 +1,22 @@
 package cli
 
 import (
-	"fmt"
+	"os"
+	"path/filepath"
 
-	"workforge/internal/app"
-	"workforge/internal/app/hook"
-	"workforge/internal/infra/log"
+	applog "workforge/internal/app/log"
 )
 
-type LogService struct {
-	orchestrator *app.Orchestrator
-}
+type LogService = applog.LogService
 
-func NewLogService(o *app.Orchestrator) *LogService {
-	return &LogService{orchestrator: o}
-}
-
-func (s *LogService) Error(context string, err error) {
-	if err == nil {
-		return
+func projectNameFromCwd() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
 	}
-
-	log.Error("%v", err)
-
-	s.orchestrator.Hooks().RunOnError(hook.ErrorPayload{
-		Error:   err.Error(),
-		Context: context,
-	})
-	s.orchestrator.Hooks().KillAllPlugins()
-}
-
-func (s *LogService) ErrorMsg(context string, msg string, args ...any) {
-	formatted := fmt.Sprintf(msg, args...)
-	log.Error("%s", formatted)
-
-	s.orchestrator.Hooks().RunOnError(hook.ErrorPayload{
-		Error:   formatted,
-		Context: context,
-	})
-	s.orchestrator.Hooks().KillAllPlugins()
-}
-
-func (s *LogService) Warn(context string, msg string, args ...any) {
-	formatted := fmt.Sprintf(msg, args...)
-	log.Warn("%s", formatted)
-
-	s.orchestrator.Hooks().RunOnWarning(hook.WarningPayload{
-		Warning: formatted,
-		Context: context,
-	})
-}
-
-func (s *LogService) Debug(context string, msg string, args ...any) {
-	formatted := fmt.Sprintf(msg, args...)
-	log.Debug("%s", formatted)
-
-	s.orchestrator.Hooks().RunOnDebug(hook.DebugPayload{
-		Message: formatted,
-		Context: context,
-	})
-}
-
-func (s *LogService) KillPlugins() {
-	s.orchestrator.Hooks().KillAllPlugins()
+	absPath, err := filepath.Abs(cwd)
+	if err != nil {
+		return filepath.Base(cwd)
+	}
+	return filepath.Base(absPath)
 }
