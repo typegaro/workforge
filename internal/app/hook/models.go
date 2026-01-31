@@ -1,5 +1,6 @@
 package hook
 
+// HookType identifies the type of hook event
 type HookType string
 
 const (
@@ -18,46 +19,87 @@ const (
 	HookOnTmuxWindow       HookType = "on_tmux_window"
 )
 
-type HookContext struct {
-	ShellCommands []string
-	PluginConfigs map[string]interface{}
-	ProjectName   string
+const (
+	FieldError   = "error"
+	FieldWarning = "warning"
+	FieldMessage = "message"
+	FieldContext = "context"
+	FieldSource  = "source"
+	FieldSession = "session"
+	FieldWindow  = "window"
+	FieldCommand = "command"
+)
+
+type HookPayload struct {
+	Project string         `json:"project"`
+	Type    HookType       `json:"hook_type"`
+	Data    map[string]any `json:"data,omitempty"`
+	Config  map[string]any `json:"config,omitempty"`
 }
 
-type MessagePayload struct {
-	Message string `json:"message"`
-	Source  string `json:"source,omitempty"`
-	Project string `json:"project"`
+func NewPayload(project string, hookType HookType) *HookPayload {
+	return &HookPayload{
+		Project: project,
+		Type:    hookType,
+		Data:    make(map[string]any),
+	}
 }
 
-type ErrorPayload struct {
-	Error   string `json:"error"`
-	Context string `json:"context,omitempty"`
-	Project string `json:"project"`
+func (p *HookPayload) WithError(err error) *HookPayload {
+	if err != nil {
+		p.Data[FieldError] = err.Error()
+	}
+	return p
 }
 
-type WarningPayload struct {
-	Warning string `json:"warning"`
-	Context string `json:"context,omitempty"`
-	Project string `json:"project"`
+func (p *HookPayload) WithErrorMsg(msg string) *HookPayload {
+	p.Data[FieldError] = msg
+	return p
 }
 
-type DebugPayload struct {
-	Message string `json:"message"`
-	Context string `json:"context,omitempty"`
-	Project string `json:"project"`
+func (p *HookPayload) WithWarning(msg string) *HookPayload {
+	p.Data[FieldWarning] = msg
+	return p
 }
 
-type TmuxSessionPayload struct {
-	Session string `json:"session"`
-	Project string `json:"project"`
+func (p *HookPayload) WithMessage(msg string) *HookPayload {
+	p.Data[FieldMessage] = msg
+	return p
 }
 
-type TmuxWindowPayload struct {
-	Session string `json:"session"`
-	Window  int    `json:"window"`
-	Command string `json:"command"`
-	Project string `json:"project"`
+func (p *HookPayload) WithContext(ctx string) *HookPayload {
+	p.Data[FieldContext] = ctx
+	return p
+}
+
+func (p *HookPayload) WithSource(src string) *HookPayload {
+	p.Data[FieldSource] = src
+	return p
+}
+
+func (p *HookPayload) WithSession(session string) *HookPayload {
+	p.Data[FieldSession] = session
+	return p
+}
+
+func (p *HookPayload) WithWindow(idx int) *HookPayload {
+	p.Data[FieldWindow] = idx
+	return p
+}
+
+func (p *HookPayload) WithCommand(cmd string) *HookPayload {
+	p.Data[FieldCommand] = cmd
+	return p
+}
+
+func (p *HookPayload) WithField(key string, value any) *HookPayload {
+	p.Data[key] = value
+	return p
+}
+
+func (p *HookPayload) WithConfig(cfg map[string]any) *HookPayload {
+	p.Config = cfg
+	return p
 }
 
 type HookResult struct {

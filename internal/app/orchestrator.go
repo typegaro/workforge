@@ -12,7 +12,7 @@ import (
 	applog "workforge/internal/app/log"
 	"workforge/internal/app/plugin"
 	"workforge/internal/app/project"
-	"workforge/internal/infra/exec"
+	"workforge/internal/app/terminal"
 	"workforge/internal/infra/tmux"
 	"workforge/internal/util"
 )
@@ -22,6 +22,7 @@ type Orchestrator struct {
 	config   *config.ConfigService
 	git      *appgit.Service
 	hooks    *hook.HookService
+	terminal *terminal.TerminalService
 	log      *applog.LogService
 }
 
@@ -35,12 +36,14 @@ func NewOrchestrator() *Orchestrator {
 	pluginSvc := plugin.NewPluginService(pluginsDir, plugin.DefaultSocketsDir())
 	hookService := hook.NewHookService(pluginSvc, pluginRegistry)
 	logService := applog.NewLogService(hookService)
+	terminalService := terminal.NewTerminalService(hookService, logService)
 
 	return &Orchestrator{
 		projects: projectService,
 		config:   configService,
 		git:      gitService,
 		hooks:    hookService,
+		terminal: terminalService,
 		log:      logService,
 	}
 }
@@ -88,33 +91,18 @@ func (o *Orchestrator) LoadProject(path string, gwt bool, profile *string, proje
 	o.log.Debug("load", "using profile: %s", currentProfile)
 
 	resolvedProjectName := resolveProjectName(path, projectName)
-	hookCtx := hook.HookContext{
-		ShellCommands: cfg[currentProfile].Hooks.OnLoad,
-		PluginConfigs: cfg[currentProfile].Extras,
-		ProjectName:   resolvedProjectName,
-	}
-	if _, err := o.hooks.RunOnLoad(hookCtx); err != nil {
+	extras := cfg[currentProfile].Extras
+
+	if err := o.terminal.RunCommands(hook.HookOnLoad, cfg[currentProfile].Hooks.OnLoad, resolvedProjectName, extras); err != nil {
 		return err
 	}
 
-	shellRunInCtx := hook.HookContext{
-		ShellCommands: cfg[currentProfile].Hooks.OnShellRunIn,
-		PluginConfigs: cfg[currentProfile].Extras,
-		ProjectName:   resolvedProjectName,
-	}
-	shellRunOutCtx := hook.HookContext{
-		ShellCommands: cfg[currentProfile].Hooks.OnShellRunOut,
-		PluginConfigs: cfg[currentProfile].Extras,
-		ProjectName:   resolvedProjectName,
-	}
-
 	if cfg[currentProfile].Tmux == nil {
-		foreground := cfg[currentProfile].Foreground
-		if _, err := o.hooks.RunOnShellRunIn(shellRunInCtx); err != nil {
+		if err := o.terminal.RunCommands(hook.HookOnShellRunIn, cfg[currentProfile].Hooks.OnShellRunIn, resolvedProjectName, extras); err != nil {
 			return err
 		}
-		execErr := exec.RunSyncUserShell(foreground)
-		if _, err := o.hooks.RunOnShellRunOut(shellRunOutCtx); err != nil {
+		execErr := o.terminal.RunForeground(cfg[currentProfile].Foreground)
+		if err := o.terminal.RunCommands(hook.HookOnShellRunOut, cfg[currentProfile].Hooks.OnShellRunOut, resolvedProjectName, extras); err != nil {
 			if execErr == nil {
 				return err
 			}
@@ -136,29 +124,27 @@ func (o *Orchestrator) LoadProject(path string, gwt bool, profile *string, proje
 		sessionName = fmt.Sprintf("%s/%s", sessionBase, br)
 	}
 
-	if _, err := o.hooks.RunOnShellRunIn(shellRunInCtx); err != nil {
+	if err := o.terminal.RunCommands(hook.HookOnShellRunIn, cfg[currentProfile].Hooks.OnShellRunIn, resolvedProjectName, extras); err != nil {
 		return err
 	}
 
 	onWindowCreated := func(session string, windowIndex int, command string) {
-		o.hooks.RunOnTmuxWindow(hook.TmuxWindowPayload{
-			Session: session,
-			Window:  windowIndex,
-			Command: command,
-			Project: resolvedProjectName,
-		})
+		payload := hook.NewPayload(resolvedProjectName, hook.HookOnTmuxWindow).
+			WithSession(session).
+			WithWindow(windowIndex).
+			WithCommand(command)
+		o.hooks.Run(payload)
 	}
 
 	if err := tmux.NewSession(path, sessionName, tmuxCfg.Attach, tmuxCfg.Windows, onWindowCreated); err != nil {
 		return fmt.Errorf("failed to start tmux session: %w", err)
 	}
 
-	o.hooks.RunOnTmuxSessionStart(hook.TmuxSessionPayload{
-		Session: sessionName,
-		Project: resolvedProjectName,
-	})
+	sessionPayload := hook.NewPayload(resolvedProjectName, hook.HookOnTmuxSessionStart).
+		WithSession(sessionName)
+	o.hooks.Run(sessionPayload)
 
-	if _, err := o.hooks.RunOnShellRunOut(shellRunOutCtx); err != nil {
+	if err := o.terminal.RunCommands(hook.HookOnShellRunOut, cfg[currentProfile].Hooks.OnShellRunOut, resolvedProjectName, extras); err != nil {
 		return err
 	}
 	return nil
@@ -180,23 +166,13 @@ func (o *Orchestrator) CloseProject(name string, profile *string) error {
 		o.log.Warn("close", "could not load config: %v", err)
 	}
 
-	var hookCtx hook.HookContext
 	if cfg != nil {
 		currentProfile, err := o.config.SelectProfile(cfg, profile)
 		if err == nil {
-			hookCtx = hook.HookContext{
-				ShellCommands: cfg[currentProfile].Hooks.OnClose,
-				PluginConfigs: cfg[currentProfile].Extras,
-				ProjectName:   entry.Name,
+			if err := o.terminal.RunCommands(hook.HookOnClose, cfg[currentProfile].Hooks.OnClose, entry.Name, cfg[currentProfile].Extras); err != nil {
+				o.log.Warn("close", "on_close hook failed: %v", err)
 			}
 		}
-	}
-	if hookCtx.ProjectName == "" {
-		hookCtx.ProjectName = entry.Name
-	}
-
-	if _, err := o.hooks.RunOnClose(hookCtx); err != nil {
-		o.log.Warn("close", "on_close hook failed: %v", err)
 	}
 
 	if err := tmux.KillSession(sessionName); err != nil {
@@ -221,12 +197,7 @@ func (o *Orchestrator) RunOnDelete(projectPath string, isGWT bool, profile *stri
 	}
 
 	resolvedProjectName := resolveProjectName(projectPath, projectName)
-	hookCtx := hook.HookContext{
-		ShellCommands: cfg[currentProfile].Hooks.OnDelete,
-		PluginConfigs: cfg[currentProfile].Extras,
-		ProjectName:   resolvedProjectName,
-	}
-	if _, err := o.hooks.RunOnDelete(hookCtx); err != nil {
+	if err := o.terminal.RunCommands(hook.HookOnDelete, cfg[currentProfile].Hooks.OnDelete, resolvedProjectName, cfg[currentProfile].Extras); err != nil {
 		return err
 	}
 

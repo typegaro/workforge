@@ -28,10 +28,7 @@ const (
 )
 
 type HookRunner interface {
-	RunOnError(payload hook.ErrorPayload) []hook.HookResult
-	RunOnWarning(payload hook.WarningPayload) []hook.HookResult
-	RunOnDebug(payload hook.DebugPayload) []hook.HookResult
-	RunOnMessage(payload hook.MessagePayload) []hook.HookResult
+	Run(payload *hook.HookPayload) []hook.HookResult
 }
 
 type LogService struct {
@@ -50,19 +47,19 @@ func (s *LogService) SetProject(name string) {
 	s.project = strings.TrimSpace(name)
 }
 
-func (s *LogService) Error(context string, err error) {
+func (s *LogService) Error(context string, err error) error {
 	if err == nil {
-		return
+		return nil
 	}
 	s.out(os.Stderr, colRed, iconError, "ERROR", "%v", err)
 
 	if s.hooks != nil {
-		s.hooks.RunOnError(hook.ErrorPayload{
-			Error:   err.Error(),
-			Context: context,
-			Project: s.project,
-		})
+		payload := hook.NewPayload(s.project, hook.HookOnError).
+			WithError(err).
+			WithContext(context)
+		s.hooks.Run(payload)
 	}
+	return err
 }
 
 func (s *LogService) ErrorMsg(context string, msg string, args ...any) {
@@ -70,11 +67,10 @@ func (s *LogService) ErrorMsg(context string, msg string, args ...any) {
 	s.out(os.Stderr, colRed, iconError, "ERROR", "%s", formatted)
 
 	if s.hooks != nil {
-		s.hooks.RunOnError(hook.ErrorPayload{
-			Error:   formatted,
-			Context: context,
-			Project: s.project,
-		})
+		payload := hook.NewPayload(s.project, hook.HookOnError).
+			WithErrorMsg(formatted).
+			WithContext(context)
+		s.hooks.Run(payload)
 	}
 }
 
@@ -85,11 +81,10 @@ func (s *LogService) Warn(context string, msg string, args ...any) {
 	}
 
 	if s.hooks != nil {
-		s.hooks.RunOnWarning(hook.WarningPayload{
-			Warning: formatted,
-			Context: context,
-			Project: s.project,
-		})
+		payload := hook.NewPayload(s.project, hook.HookOnWarning).
+			WithWarning(formatted).
+			WithContext(context)
+		s.hooks.Run(payload)
 	}
 }
 
@@ -98,11 +93,10 @@ func (s *LogService) Info(context string, msg string, args ...any) {
 	s.out(os.Stdout, colBlue, iconInfo, "INFO", "%s", formatted)
 
 	if s.hooks != nil {
-		s.hooks.RunOnMessage(hook.MessagePayload{
-			Message: formatted,
-			Source:  context,
-			Project: s.project,
-		})
+		payload := hook.NewPayload(s.project, hook.HookOnMessage).
+			WithMessage(formatted).
+			WithSource(context)
+		s.hooks.Run(payload)
 	}
 }
 
@@ -111,11 +105,10 @@ func (s *LogService) Success(context string, msg string, args ...any) {
 	s.out(os.Stdout, colGreen, iconSuccess, "OK", "%s", formatted)
 
 	if s.hooks != nil {
-		s.hooks.RunOnMessage(hook.MessagePayload{
-			Message: formatted,
-			Source:  context,
-			Project: s.project,
-		})
+		payload := hook.NewPayload(s.project, hook.HookOnMessage).
+			WithMessage(formatted).
+			WithSource(context)
+		s.hooks.Run(payload)
 	}
 }
 
@@ -126,11 +119,10 @@ func (s *LogService) Debug(context string, msg string, args ...any) {
 	}
 
 	if s.hooks != nil {
-		s.hooks.RunOnDebug(hook.DebugPayload{
-			Message: formatted,
-			Context: context,
-			Project: s.project,
-		})
+		payload := hook.NewPayload(s.project, hook.HookOnDebug).
+			WithMessage(formatted).
+			WithContext(context)
+		s.hooks.Run(payload)
 	}
 }
 

@@ -1,3 +1,5 @@
+READ ME BEFORE STARTING DEVELOPMENT
+
 # FOLDERS
 - `cmd/wf`: CLI entrypoint
 - `internal/cli`: cobra commands
@@ -8,22 +10,14 @@
 - `internal/app/git`: git operations wrapper
 - `internal/app/log`: logging with hook integration
 - `internal/app/hook`: plugin lifecycle hooks
+- `internal/app/terminal`: shell command execution with hook triggers
 - `internal/infra`: OS adapters (exec, git, tmux, fs)
 - `internal/util`: pure helpers
 
-Keep this section updated when adding/removing packages.
+keep business logic in `internal/app`, OS interactions in `internal/infra`, and pure helpers in `internal/util`.
 
-# MAKEFILE
-
-| Target | Description |
-|--------|-------------|
-| `make build` | Build binary to `bin/wf` |
-| `make build-verbose` | Build with debug/warn visible |
-| `make test` | Run tests |
-| `make fmt` | Format code |
-| `make install` | Install to `/usr/local/bin` |
-| `make uninstall` | Remove installed binary |
-| `make clean` | Remove build artifacts |
+# Makefile
+loook at `Makefile` for compile, test, lint, and other commands.
 
 # NIX TOOLING
 Use `nix shell nixpkgs#<tool>` for temporary tool installs.
@@ -40,18 +34,12 @@ take a look at `internal/app/` for example.
 
 # LOGGING
 
-Use `internal/app/log.LogService` (injected via Orchestrator).
+Plese use `internal/app/log` for logging + hook integration already set up.
+Do NOT use `internal/infra/log` in app layer. and avoid direct `fmt` or `log` calls.
 
-| Level | Default | Verbose |
-|-------|---------|---------|
-| Error/Info/Success | visible | visible |
-| Warn/Debug | hidden | visible |
+# HOOKS
+Use `internal/app/hook` to trigger plugin hooks at key points.
 
-Hooks always trigger. Build verbose: `make build-verbose`
+# Command EXECUTION
+See `internal/app/terminal` for shell command execution with pre/post hooks.
 
-```go
-o.log.Info("context", "msg %s", arg)
-o.log.Error("context", err)
-```
-
-Do NOT use `internal/infra/log` in app layer.
